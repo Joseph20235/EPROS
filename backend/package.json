@@ -5,14 +5,15 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
+    "db:init": "node scripts/init-db.js",
     "dev": "node --watch server.js",
     "start": "node server.js"
   },
   "dependencies": {
+    "better-sqlite3": "^12.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "morgan": "^1.10.0",
-    "pg": "^8.13.1"
+    "morgan": "^1.10.0"
   }
 }

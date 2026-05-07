@@ -6,6 +6,9 @@ dist/
 frontend/dist/
 coverage/
 
+backend/database/*.sqlite
+backend/database/*.sqlite-*
+
 .env
 .env.local
 .env.*.local

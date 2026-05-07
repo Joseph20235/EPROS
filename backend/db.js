@@ -1,12 +1,34 @@
-import pg from 'pg';
+import Database from 'better-sqlite3';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const { Pool } = pg;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
+const databasePath = process.env.SQLITE_DB_PATH
+  ? path.resolve(process.env.SQLITE_DB_PATH)
+  : path.join(__dirname, 'database', 'epros.sqlite');
 
-export async function query(text, params) {
-  const result = await pool.query(text, params);
-  return result;
+fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+
+export const db = new Database(databasePath);
+
+db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
+
+export function all(sql, params = []) {
+  return db.prepare(sql).all(params);
+}
+
+export function get(sql, params = []) {
+  return db.prepare(sql).get(params);
+}
+
+export function run(sql, params = []) {
+  return db.prepare(sql).run(params);
+}
+
+export function transaction(callback) {
+  return db.transaction(callback);
 }
