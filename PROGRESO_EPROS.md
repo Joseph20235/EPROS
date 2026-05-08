@@ -184,3 +184,80 @@ Tambien se hizo una prueba real del endpoint `POST /api/incapacidades` usando un
 npm.cmd run dev --prefix backend
 npm.cmd run dev --prefix frontend
 ```
+
+---
+
+## Sesion 4 - CU-02 Validar Documentacion
+
+**Estado:** completada  
+**Commit funcional:** `Implementar CU-02 validacion documental`
+
+### Hecho
+
+- Se implemento el caso de uso CU-02 en la ruta frontend `/incapacidades/:id/validar`.
+- Se agrego una pantalla de validacion documental con:
+  - detalle completo de la incapacidad
+  - datos del colaborador y EPS/ARL
+  - estado actual de la incapacidad
+  - visor del documento adjunto PDF/JPG/PNG
+  - checklist editable
+  - observacion por item
+  - observacion general
+- Se implemento checklist dinamico en backend segun tipo y numero de dias:
+  - todos los tipos incluyen firma medico, sello IPS, fechas coherentes, CIE-10 valido y numero legible
+  - epicrisis se agrega si dias > 2, accidente laboral/transito o licencia
+  - FURIPS se agrega para `ACCIDENTE_TRANSITO`
+  - licencia de maternidad agrega certificado nacido vivo, registro civil y fotocopia documento identidad
+  - licencia de paternidad agrega epicrisis semanas gestacion, certificado nacido vivo, registro civil y fotocopia documento identidad madre
+- Cada item maneja los estados `Cumple`, `No cumple` y `Pendiente`.
+- Se agrego persistencia del checklist completo en `validaciones.checklist_detalle` como JSON para conservar observaciones y estados por item.
+- Se conservaron los campos booleanos existentes de `validaciones` para compatibilidad con el modelo previo.
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/:id/validacion`
+  - `PUT /api/incapacidades/:id/validacion`
+  - `PUT /api/incapacidades/:id/validacion/aprobar`
+- La aprobacion valida que todos los items criticos esten en `Cumple`.
+- Si la validacion pasa:
+  - se registra/actualiza la validacion
+  - se cambia el estado a `En_Validacion`
+  - se registra historial en `estados`
+  - se registra auditoria con accion `APROBAR_VALIDACION_DOCUMENTAL`
+- Si la validacion falla:
+  - se bloquea la aprobacion
+  - se devuelven y muestran los items criticos faltantes
+  - el estado permanece en `Registrada`
+  - se registra auditoria con accion `VALIDACION_DOCUMENTAL_BLOQUEADA`
+- Se ajusto la navegacion SPA para reconocer rutas dinamicas de validacion.
+- El boton `Ir a validar` despues de registrar una incapacidad abre la pantalla real de CU-02.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Registro.jsx`
+- `frontend/src/pages/ValidarIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/server.js
+node --check backend/routes/incapacidades.js
+npm.cmd run build
+```
+
+El build se ejecuto desde `frontend/`. Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu02-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+### Comandos utiles
+
+```bash
+npm.cmd run dev --prefix backend
+npm.cmd run dev --prefix frontend
+```

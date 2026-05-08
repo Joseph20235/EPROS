@@ -191,6 +191,7 @@ export default function Registro() {
   function irAValidar() {
     if (!incapacidadCreada) return;
     window.history.pushState({}, '', `/incapacidades/${incapacidadCreada.id}/validar`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
   return (

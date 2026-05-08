@@ -115,6 +115,7 @@ CREATE TABLE validaciones (
   numero_incapacidad_legible INTEGER NOT NULL DEFAULT 0 CHECK (numero_incapacidad_legible IN (0, 1)),
   epicrisis_adjunta INTEGER NOT NULL DEFAULT 0 CHECK (epicrisis_adjunta IN (0, 1)),
   furips_adjunto INTEGER NOT NULL DEFAULT 0 CHECK (furips_adjunto IN (0, 1)),
+  checklist_detalle TEXT NOT NULL DEFAULT '[]',
   observaciones TEXT,
   aprobada_por INTEGER,
   fecha_validacion TEXT,

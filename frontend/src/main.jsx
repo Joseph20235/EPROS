@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import AdminColaboradores from './pages/AdminColaboradores.jsx';
@@ -9,6 +9,7 @@ import Login from './pages/Login.jsx';
 import Registro from './pages/Registro.jsx';
 import Reportes from './pages/Reportes.jsx';
 import Seguimiento from './pages/Seguimiento.jsx';
+import ValidarIncapacidad from './pages/ValidarIncapacidad.jsx';
 import './styles.css';
 
 const navItems = [
@@ -22,13 +23,32 @@ const navItems = [
 ];
 
 function AppShell() {
-  const initialPage = navItems.find((item) => item.path === window.location.pathname)?.id ?? 'login';
-  const [activePage, setActivePage] = useState(initialPage);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const validacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/validar$/);
+  const activePage = validacionMatch
+    ? 'validacion'
+    : navItems.find((item) => item.path === currentPath)?.id ?? 'login';
   const CurrentPage = navItems.find((item) => item.id === activePage)?.component ?? Login;
 
   function navigate(item) {
-    setActivePage(item.id);
-    window.history.pushState({}, '', item.path ?? '/');
+    const nextPath = item.path ?? '/';
+    window.history.pushState({}, '', nextPath);
+    setCurrentPath(nextPath);
+  }
+
+  useEffect(() => {
+    const syncPath = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', syncPath);
+
+    return () => window.removeEventListener('popstate', syncPath);
+  }, []);
+
+  function renderPage() {
+    if (validacionMatch) {
+      return <ValidarIncapacidad incapacidadId={validacionMatch[1]} />;
+    }
+
+    return <CurrentPage />;
   }
 
   return (
@@ -58,7 +78,7 @@ function AppShell() {
       </aside>
 
       <main className="content">
-        <CurrentPage />
+        {renderPage()}
       </main>
     </div>
   );

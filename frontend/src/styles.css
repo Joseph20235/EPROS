@@ -390,6 +390,123 @@ label small {
   flex-wrap: wrap;
 }
 
+.validation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 42%);
+  gap: 20px;
+  align-items: start;
+}
+
+.validation-main {
+  display: grid;
+  gap: 18px;
+}
+
+.detail-panel h2,
+.checklist-panel h2,
+.document-viewer h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.detail-grid div {
+  min-width: 0;
+}
+
+.detail-grid dt {
+  color: #537083;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detail-grid dd {
+  margin: 4px 0 0;
+  color: #1b2430;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.checklist-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.checklist-table {
+  display: grid;
+  gap: 12px;
+}
+
+.checklist-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px minmax(220px, 1.2fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+}
+
+.checklist-row strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #304457;
+}
+
+.critical-tag {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fff2db;
+  color: #85540d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.general-observation {
+  display: grid;
+}
+
+.document-viewer {
+  position: sticky;
+  top: 24px;
+  min-height: 680px;
+}
+
+.document-viewer iframe,
+.document-viewer img {
+  display: block;
+  width: 100%;
+  height: 620px;
+  border: 1px solid #dce3e8;
+  border-radius: 8px;
+  background: #eef1f4;
+}
+
+.document-viewer img {
+  height: auto;
+  max-height: 620px;
+  object-fit: contain;
+}
+
+.compact-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.empty-state {
+  margin: 0;
+  color: #537083;
+  font-weight: 700;
+}
+
 .task-list {
   display: grid;
   gap: 12px;
@@ -450,8 +567,21 @@ label small {
   .two-columns,
   .metrics-grid,
   .admin-layout,
-  .toolbar {
+  .toolbar,
+  .validation-layout,
+  .detail-grid,
+  .checklist-row {
     grid-template-columns: 1fr;
+  }
+
+  .document-viewer {
+    position: static;
+    min-height: 0;
+  }
+
+  .document-viewer iframe,
+  .document-viewer img {
+    height: 460px;
   }
 
   .page-header h1 {
