@@ -24,7 +24,7 @@ const navItems = [
   { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva' },
   { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial, path: '/historial' },
   { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento, path: '/seguimiento' },
-  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes },
+  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes, path: '/reportes' },
   { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores' },
   { id: 'admin-eps-arl', label: 'EPS/ARL', symbol: 'EA', component: AdminEpsArl, path: '/admin/eps-arl' }
 ];
@@ -37,12 +37,14 @@ function AppShell() {
   const cobroMatch = currentPath.match(/^\/incapacidades\/(\d+)\/cobro$/);
   const pagoMatch = currentPath.match(/^\/incapacidades\/(\d+)\/pago$/);
   const expedienteMatch = currentPath.match(/^\/incapacidades\/(\d+)$/);
+  const historialExpedienteMatch = currentPath.match(/^\/historial\/(\d+)$/);
   const activePage =
     (validacionMatch && 'validacion') ||
     (transcripcionMatch && 'transcripcion') ||
     (radicacionMatch && 'radicacion') ||
     (cobroMatch && 'cobro') ||
     (pagoMatch && 'pago') ||
+    (historialExpedienteMatch && 'historial') ||
     (expedienteMatch && 'historial') ||
     navItems.find((item) => item.path === currentPath)?.id ||
     'login';
@@ -84,6 +86,10 @@ function AppShell() {
 
     if (expedienteMatch) {
       return <ExpedienteIncapacidad incapacidadId={expedienteMatch[1]} />;
+    }
+
+    if (historialExpedienteMatch) {
+      return <ExpedienteIncapacidad incapacidadId={historialExpedienteMatch[1]} soloLectura />;
     }
 
     return <CurrentPage />;

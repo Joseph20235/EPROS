@@ -517,6 +517,259 @@ function obtenerValorCobrado(cobro) {
   return Number(cobro.valor_ajustado ?? cobro.valor_calculado);
 }
 
+function construirFiltrosHistorial(query) {
+  const filtros = [];
+  const params = [];
+  const colaborador = String(query.colaborador ?? '').trim();
+  const fechaInicio = String(query.fecha_inicio ?? '').trim();
+  const fechaFin = String(query.fecha_fin ?? '').trim();
+  const estado = String(query.estado ?? '').trim();
+  const tipo = String(query.tipo ?? '').trim();
+  const epsArlId = String(query.eps_arl_id ?? '').trim();
+  const area = String(query.area ?? '').trim();
+
+  if (colaborador) {
+    filtros.push('(c.nombre_completo LIKE ? OR c.numero_identificacion LIKE ?)');
+    params.push(`%${colaborador}%`, `%${colaborador}%`);
+  }
+
+  if (fechaInicio) {
+    filtros.push('i.fecha_inicio >= ?');
+    params.push(fechaInicio);
+  }
+
+  if (fechaFin) {
+    filtros.push('i.fecha_fin <= ?');
+    params.push(fechaFin);
+  }
+
+  if (estado && estadosIncapacidad.includes(estado)) {
+    filtros.push('e.estado = ?');
+    params.push(estado);
+  }
+
+  if (tipo && tiposIncapacidad.includes(tipo)) {
+    filtros.push('i.tipo = ?');
+    params.push(tipo);
+  }
+
+  if (epsArlId) {
+    filtros.push('ea.id = ?');
+    params.push(epsArlId);
+  }
+
+  if (area) {
+    filtros.push('c.area LIKE ?');
+    params.push(`%${area}%`);
+  }
+
+  return {
+    where: filtros.length ? `WHERE ${filtros.join(' AND ')}` : '',
+    params
+  };
+}
+
+function consultaHistorialBase(where) {
+  return `
+    SELECT
+      i.id,
+      i.numero_incapacidad,
+      i.colaborador_id,
+      c.nombre_completo AS colaborador_nombre,
+      c.numero_identificacion AS colaborador_identificacion,
+      c.area AS colaborador_area,
+      ea.id AS eps_arl_id,
+      ea.nombre AS eps_arl_nombre,
+      ea.tipo AS eps_arl_tipo,
+      i.fecha_inicio,
+      i.fecha_fin,
+      i.numero_dias,
+      i.diagnostico_cie10,
+      i.tipo,
+      e.estado AS estado_actual,
+      i.created_at
+    FROM incapacidades i
+    JOIN colaboradores c ON c.id = i.colaborador_id
+    JOIN eps_arl ea ON ea.id = c.eps_arl_id
+    LEFT JOIN estados e ON e.id = i.estado_actual_id
+    ${where}
+  `;
+}
+
+function escaparCsv(valor) {
+  const texto = String(valor ?? '');
+  return `"${texto.replaceAll('"', '""')}"`;
+}
+
+function obtenerExpedienteCompleto(incapacidadId) {
+  const incapacidad = obtenerIncapacidad(incapacidadId);
+
+  if (!incapacidad) return null;
+
+  const estados = all(
+    `
+      SELECT
+        e.*,
+        u.nombre_completo AS usuario_nombre
+      FROM estados e
+      LEFT JOIN usuarios u ON u.id = e.usuario_id
+      WHERE e.incapacidad_id = ?
+      ORDER BY e.fecha_cambio ASC, e.id ASC
+    `,
+    [incapacidadId]
+  );
+  const seguimientos = all(
+    `
+      SELECT
+        s.*,
+        u.nombre_completo AS auxiliar_nombre
+      FROM seguimientos s
+      LEFT JOIN usuarios u ON u.id = s.auxiliar_id
+      WHERE s.incapacidad_id = ?
+      ORDER BY s.fecha_contacto DESC, s.id DESC
+    `,
+    [incapacidadId]
+  );
+  const cobros = all(
+    `
+      SELECT
+        c.*,
+        COALESCE(c.valor_ajustado, c.valor_calculado) AS valor_cobrado
+      FROM cobros c
+      WHERE c.incapacidad_id = ?
+      ORDER BY c.fecha_cobro DESC, c.id DESC
+    `,
+    [incapacidadId]
+  );
+  const pagos = all(
+    `
+      SELECT
+        p.*,
+        c.incapacidad_id,
+        c.fecha_cobro
+      FROM pagos p
+      JOIN cobros c ON c.id = p.cobro_id
+      WHERE c.incapacidad_id = ?
+      ORDER BY p.fecha_pago DESC, p.id DESC
+    `,
+    [incapacidadId]
+  );
+  const radicacion = get('SELECT * FROM radicaciones WHERE incapacidad_id = ?', [incapacidadId]);
+  const validacion = get('SELECT * FROM validaciones WHERE incapacidad_id = ?', [incapacidadId]);
+  const transcripcion = get('SELECT * FROM transcripciones WHERE incapacidad_id = ?', [incapacidadId]);
+  const rechazo = get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [incapacidadId]);
+  const conciliacion = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [incapacidadId]);
+  const cobroJuridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [incapacidadId]);
+  const documentos = [
+    { etiqueta: 'Incapacidad original', url: incapacidad.documento_adjunto },
+    { etiqueta: 'Comprobante de radicacion', url: radicacion?.comprobante_adjunto },
+    ...cobros.map((cobro, indice) => ({
+      etiqueta: `Cuenta de cobro ${indice + 1}`,
+      url: cobro.documento_cuenta_cobro
+    })),
+    ...pagos.map((pago, indice) => ({
+      etiqueta: `Comprobante de pago ${indice + 1}`,
+      url: pago.comprobante_adjunto
+    })),
+    { etiqueta: 'Notificacion de rechazo', url: rechazo?.documento_notificacion },
+    { etiqueta: 'Soporte conciliacion', url: conciliacion?.documentos_soporte }
+  ].filter((documento) => documento.url);
+
+  return {
+    ...incapacidad,
+    estados,
+    seguimientos,
+    cobros,
+    pagos,
+    radicacion,
+    validacion,
+    transcripcion,
+    rechazo,
+    conciliacion,
+    cobro_juridico: cobroJuridico,
+    documentos,
+    transiciones_validas: obtenerTransicionesValidas(incapacidad.estado_actual)
+  };
+}
+
+router.get('/historial', (req, res) => {
+  const pagina = Math.max(Number.parseInt(req.query.pagina ?? '1', 10), 1);
+  const limite = 20;
+  const offset = (pagina - 1) * limite;
+  const { where, params } = construirFiltrosHistorial(req.query);
+  const total = get(
+    `
+      SELECT COUNT(*) AS total
+      FROM incapacidades i
+      JOIN colaboradores c ON c.id = i.colaborador_id
+      JOIN eps_arl ea ON ea.id = c.eps_arl_id
+      LEFT JOIN estados e ON e.id = i.estado_actual_id
+      ${where}
+    `,
+    params
+  ).total;
+  const registros = all(
+    `
+      ${consultaHistorialBase(where)}
+      ORDER BY i.fecha_inicio DESC, i.id DESC
+      LIMIT ? OFFSET ?
+    `,
+    [...params, limite, offset]
+  );
+
+  res.json({
+    data: registros,
+    pagination: {
+      pagina,
+      limite,
+      total,
+      total_paginas: Math.max(Math.ceil(total / limite), 1)
+    }
+  });
+});
+
+router.get('/historial/exportar', (req, res) => {
+  const { where, params } = construirFiltrosHistorial(req.query);
+  const registros = all(
+    `
+      ${consultaHistorialBase(where)}
+      ORDER BY i.fecha_inicio DESC, i.id DESC
+    `,
+    params
+  );
+  const encabezados = [
+    'Numero incapacidad',
+    'Colaborador',
+    'Identificacion',
+    'Area',
+    'EPS/ARL',
+    'Fecha inicio',
+    'Fecha fin',
+    'Dias',
+    'Estado',
+    'Tipo',
+    'CIE-10'
+  ];
+  const filas = registros.map((registro) => [
+    registro.numero_incapacidad,
+    registro.colaborador_nombre,
+    registro.colaborador_identificacion,
+    registro.colaborador_area,
+    registro.eps_arl_nombre,
+    registro.fecha_inicio,
+    registro.fecha_fin,
+    registro.numero_dias,
+    registro.estado_actual,
+    registro.tipo,
+    registro.diagnostico_cie10
+  ]);
+  const csv = [encabezados, ...filas].map((fila) => fila.map(escaparCsv).join(',')).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="historial-incapacidades.csv"');
+  res.send(`\uFEFF${csv}`);
+});
+
 router.get('/', (_req, res) => {
   const incapacidades = all(`
     SELECT
@@ -543,30 +796,13 @@ router.get('/', (_req, res) => {
 });
 
 router.get('/:id', (req, res) => {
-  const incapacidad = obtenerIncapacidad(req.params.id);
+  const incapacidad = obtenerExpedienteCompleto(req.params.id);
 
   if (!incapacidad) {
     return res.status(404).json({ error: 'Incapacidad no encontrada' });
   }
 
-  const estados = all(
-    `
-      SELECT
-        e.*,
-        u.nombre_completo AS usuario_nombre
-      FROM estados e
-      LEFT JOIN usuarios u ON u.id = e.usuario_id
-      WHERE e.incapacidad_id = ?
-      ORDER BY e.fecha_cambio ASC, e.id ASC
-    `,
-    [req.params.id]
-  );
-
-  return res.json({
-    ...incapacidad,
-    estados,
-    transiciones_validas: obtenerTransicionesValidas(incapacidad.estado_actual)
-  });
+  return res.json(incapacidad);
 });
 
 router.get('/:id/validacion', (req, res) => {

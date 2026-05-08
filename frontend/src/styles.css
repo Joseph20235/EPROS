@@ -232,6 +232,13 @@ td {
   text-align: left;
 }
 
+td small {
+  display: block;
+  margin-top: 4px;
+  color: #537083;
+  font-weight: 700;
+}
+
 th {
   color: #537083;
   font-size: 13px;
@@ -315,6 +322,22 @@ th {
   gap: 12px;
   align-items: end;
   margin-bottom: 18px;
+}
+
+.history-filters,
+.report-builder {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-field {
@@ -831,6 +854,97 @@ label small {
   font-size: 20px;
 }
 
+.result-count {
+  color: #537083;
+  font-weight: 800;
+}
+
+.compact-records {
+  display: grid;
+  gap: 12px;
+}
+
+.record-item {
+  padding: 14px;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.record-item strong,
+.record-item small {
+  display: block;
+}
+
+.record-item p {
+  margin: 6px 0;
+  color: #304457;
+}
+
+.record-item small {
+  color: #537083;
+  font-weight: 700;
+}
+
+.stacked-table {
+  margin-top: 18px;
+}
+
+.finance-empty {
+  margin-top: 14px;
+}
+
+.document-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.document-list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid #cbd6dd;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #304457;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.report-preview {
+  display: grid;
+  gap: 20px;
+}
+
+.report-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.report-summary-grid div {
+  padding: 16px;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.report-summary-grid h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.report-summary-grid p {
+  margin: 6px 0;
+  color: #304457;
+  font-weight: 700;
+}
+
 .alert-list {
   display: grid;
   gap: 10px;
@@ -894,6 +1008,9 @@ label small {
   .metrics-grid,
   .admin-layout,
     .toolbar,
+    .history-filters,
+    .report-builder,
+    .report-summary-grid,
     .validation-layout,
     .workflow-layout,
     .expediente-layout,

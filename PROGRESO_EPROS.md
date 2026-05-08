@@ -267,7 +267,7 @@ npm.cmd run dev --prefix frontend
 ## Sesion 5 - CU-03 Transcribir y CU-04 Radicar
 
 **Estado:** completada  
-**Commit funcional:** pendiente
+**Commit funcional:** `Implementar CU-09 historial y CU-10 reportes`
 
 ### Hecho
 
@@ -539,4 +539,63 @@ Prueba real por HTTP usando el backend en puerto temporal `4106`:
 node --check backend/server.js
 node --check backend/routes/incapacidades.js
 npm.cmd run build --prefix frontend
+```
+
+---
+
+## Sesion 9 - CU-09 Historial y CU-10 Reportes
+
+**Estado:** completada  
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento CU-09 en `/historial` con filtros por colaborador, rango de fechas, estado, tipo, EPS/ARL y area.
+- El historial usa paginacion fija de 20 registros y muestra el total encontrado.
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/historial`
+  - `GET /api/incapacidades/historial/exportar`
+- La exportacion del historial genera CSV compatible con Excel solo con los datos del listado.
+- El expediente abierto desde historial queda en modo solo lectura en `/historial/:id`.
+- `GET /api/incapacidades/:id` ahora devuelve expediente completo con estados, seguimientos, cobros, pagos, radicacion, validacion, transcripcion, rechazos, conciliacion, cobro juridico y documentos descargables.
+- Se implemento CU-10 en `/reportes` con parametros configurables, previsualizacion y exportacion a PDF mediante impresion del navegador.
+- Se agrego `POST /api/reportes/generar` con los 4 reportes solicitados:
+  - Incapacidades por periodo, con totales por estado y tipo.
+  - Cobros y pagos pendientes, para incapacidades `En_Cobro` y dias desde el cobro.
+  - Reporte por colaborador, con historial, total de dias y diagnosticos frecuentes.
+  - Incapacidades prolongadas, con colaboradores que acumulan mas de 90 dias.
+- Cada generacion de reporte registra auditoria con accion `GENERAR_REPORTE`.
+- Se corrigio la navegacion de Reportes para apuntar a `/reportes`.
+
+### Archivos principales modificados
+
+- `backend/routes/incapacidades.js`
+- `backend/routes/reportes.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/pages/Reportes.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/incapacidades.js
+node --check backend/routes/reportes.js
+npm.cmd run build
+```
+
+El build se ejecuto desde `frontend/`. Tambien se validaron por HTTP:
+
+- `GET /api/incapacidades/historial?pagina=1`
+- `GET /api/incapacidades/8`
+- `GET /api/incapacidades/historial/exportar?estado=En_Cobro`
+- `POST /api/reportes/generar` para los 4 tipos de reporte
+
+### Comandos utiles
+
+```bash
+npm.cmd run dev --prefix backend
+npm.cmd run dev --prefix frontend
 ```

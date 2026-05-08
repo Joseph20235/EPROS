@@ -37,7 +37,15 @@ function etiquetaEstado(estado) {
   return estadoLabels[estado] ?? estado;
 }
 
-export default function ExpedienteIncapacidad({ incapacidadId }) {
+function formatearMoneda(valor) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0
+  }).format(Number(valor ?? 0));
+}
+
+export default function ExpedienteIncapacidad({ incapacidadId, soloLectura = false }) {
   const [expediente, setExpediente] = useState(null);
   const [estadoDestino, setEstadoDestino] = useState('');
   const [justificacion, setJustificacion] = useState('');
@@ -148,29 +156,31 @@ export default function ExpedienteIncapacidad({ incapacidadId }) {
                   {etiquetaEstado(expediente.estado_actual)}
                 </strong>
               </div>
-              <div className="actions-cell">
-                {expediente.estado_actual === 'Aprobada' && (
-                  <button type="button" className="primary-button" onClick={iniciarCobro}>
-                    Gestionar cobro
+              {!soloLectura && (
+                <div className="actions-cell">
+                  {expediente.estado_actual === 'Aprobada' && (
+                    <button type="button" className="primary-button" onClick={iniciarCobro}>
+                      Gestionar cobro
+                    </button>
+                  )}
+                  {expediente.estado_actual === 'En_Cobro' && (
+                    <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/pago`)}>
+                      Registrar pago
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={transiciones.length === 0}
+                    onClick={() => setMostrarCambio((actual) => !actual)}
+                  >
+                    Cambiar estado
                   </button>
-                )}
-                {expediente.estado_actual === 'En_Cobro' && (
-                  <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/pago`)}>
-                    Registrar pago
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={transiciones.length === 0}
-                  onClick={() => setMostrarCambio((actual) => !actual)}
-                >
-                  Cambiar estado
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
-            {mostrarCambio && (
+            {mostrarCambio && !soloLectura && (
               <form className="state-change-form" onSubmit={cambiarEstado}>
                 <label>
                   <span>Nuevo estado</span>
@@ -238,6 +248,91 @@ export default function ExpedienteIncapacidad({ incapacidadId }) {
                 <dd>{expediente.observaciones ?? 'Sin observaciones'}</dd>
               </div>
             </dl>
+          </article>
+
+          <article className="panel detail-panel">
+            <h2>Novedades de seguimiento</h2>
+            {expediente.seguimientos?.length ? (
+              <div className="compact-records">
+                {expediente.seguimientos.map((seguimiento) => (
+                  <div key={seguimiento.id} className="record-item">
+                    <strong>{seguimiento.fecha_contacto} · {seguimiento.canal_contacto}</strong>
+                    <p>{seguimiento.resultado_gestion}</p>
+                    <small>{seguimiento.proximo_paso ?? 'Sin proximo paso'} · {seguimiento.auxiliar_nombre ?? 'Usuario sistema'}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No hay novedades registradas.</p>
+            )}
+          </article>
+
+          <article className="panel detail-panel">
+            <h2>Cobros y pagos</h2>
+            {expediente.cobros?.length ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha cobro</th>
+                    <th>Valor cobrado</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expediente.cobros.map((cobro) => (
+                    <tr key={cobro.id}>
+                      <td>{cobro.fecha_cobro}</td>
+                      <td>{formatearMoneda(cobro.valor_cobrado)}</td>
+                      <td>{cobro.estado}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="empty-state">No hay cobros registrados.</p>
+            )}
+
+            {expediente.pagos?.length ? (
+              <table className="stacked-table">
+                <thead>
+                  <tr>
+                    <th>Fecha pago</th>
+                    <th>Referencia</th>
+                    <th>Entidad</th>
+                    <th>Valor pagado</th>
+                    <th>Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expediente.pagos.map((pago) => (
+                    <tr key={pago.id}>
+                      <td>{pago.fecha_pago}</td>
+                      <td>{pago.numero_referencia}</td>
+                      <td>{pago.entidad_pagadora}</td>
+                      <td>{formatearMoneda(pago.valor_pagado)}</td>
+                      <td>{formatearMoneda(pago.diferencia_detectada)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="empty-state finance-empty">No hay pagos registrados.</p>
+            )}
+          </article>
+
+          <article className="panel detail-panel">
+            <h2>Documentos adjuntos</h2>
+            {expediente.documentos?.length ? (
+              <div className="document-list">
+                {expediente.documentos.map((documento) => (
+                  <a key={`${documento.etiqueta}-${documento.url}`} href={`${API_BASE.replace('/api', '')}${documento.url}`} download>
+                    {documento.etiqueta}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No hay documentos descargables.</p>
+            )}
           </article>
         </div>
 
