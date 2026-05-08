@@ -15,7 +15,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -104,6 +105,10 @@ textarea {
   max-width: 980px;
 }
 
+.wide-page {
+  max-width: 1280px;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -160,7 +165,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid #cbd6dd;
   border-radius: 8px;
@@ -189,6 +195,31 @@ textarea {
   cursor: pointer;
 }
 
+.secondary-button,
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid #cbd6dd;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #304457;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button {
+  border-color: #f0b6b6;
+  color: #a33b3b;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -215,6 +246,86 @@ th {
   background: #eaf7f0;
   color: #247351;
   font-weight: 800;
+}
+
+.status.muted {
+  background: #eef1f4;
+  color: #667789;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-form {
+  max-width: none;
+}
+
+.admin-form h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.search-field {
+  min-width: 0;
+}
+
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pagination-bar,
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.pagination-bar div,
+.form-actions {
+  flex-wrap: wrap;
+}
+
+.checkbox-line {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.checkbox-line input {
+  width: 18px;
+  height: 18px;
+}
+
+.feedback {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.feedback.success {
+  background: #eaf7f0;
+  color: #247351;
+}
+
+.feedback.error {
+  background: #fff0f0;
+  color: #a33b3b;
 }
 
 .task-list {
@@ -275,7 +386,9 @@ th {
   }
 
   .two-columns,
-  .metrics-grid {
+  .metrics-grid,
+  .admin-layout,
+  .toolbar {
     grid-template-columns: 1fr;
   }
 

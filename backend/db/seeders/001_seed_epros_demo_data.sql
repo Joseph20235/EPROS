@@ -9,10 +9,13 @@ INSERT INTO eps_arl (
   portal_url,
   correo_radicacion
 ) VALUES
-  (1, 'Salud Total EPS', 'EPS', 66.67, 365, 'https://www.saludtotal.com.co', 'radicaciones@saludtotal.com.co'),
+  (1, 'Salud Total', 'EPS', 66.67, 365, 'https://www.saludtotal.com.co', 'radicaciones@saludtotal.com.co'),
   (2, 'Nueva EPS', 'EPS', 66.67, 365, 'https://www.nuevaeps.com.co', 'incapacidades@nuevaeps.com.co'),
   (3, 'SURA EPS', 'EPS', 66.67, 150, 'https://www.epssura.com', 'radicacionincapacidades@epssura.com'),
-  (4, 'ARL SURA', 'ARL', 100.00, 365, 'https://www.arlsura.com', 'radicaciones@arlsura.com')
+  (4, 'ARL SURA', 'ARL', 100.00, 365, 'https://www.arlsura.com', 'radicaciones@arlsura.com'),
+  (5, 'SOS', 'EPS', 66.67, 365, 'https://www.sos.com.co', 'radicaciones@sos.com.co'),
+  (6, 'Sanitas', 'EPS', 66.67, 1095, 'https://www.epssanitas.com', 'radicaciones@epssanitas.com'),
+  (7, 'Asmet Salud', 'EPS', 66.67, 365, 'https://www.asmetsalud.com', 'radicaciones@asmetsalud.com')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO usuarios (
@@ -168,7 +171,7 @@ INSERT INTO pagos (
   diferencia_detectada
 ) VALUES
   (1, 2, 420000.00, '2026-03-29', 'PAGO-2026-009', 'ARL SURA', '/uploads/incapacidades/9/pago.pdf', 140000.00),
-  (2, 4, 57804.00, '2026-04-20', 'PAGO-2026-011', 'Salud Total EPS', '/uploads/incapacidades/11/pago.pdf', 0.00)
+  (2, 4, 57804.00, '2026-04-20', 'PAGO-2026-011', 'Salud Total', '/uploads/incapacidades/11/pago.pdf', 0.00)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO seguimientos (

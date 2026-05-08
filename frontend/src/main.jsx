@@ -2,6 +2,8 @@ import React from 'react';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import AdminColaboradores from './pages/AdminColaboradores.jsx';
+import AdminEpsArl from './pages/AdminEpsArl.jsx';
 import Historial from './pages/Historial.jsx';
 import Login from './pages/Login.jsx';
 import Registro from './pages/Registro.jsx';
@@ -14,12 +16,20 @@ const navItems = [
   { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro },
   { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial },
   { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento },
-  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes }
+  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes },
+  { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores' },
+  { id: 'admin-eps-arl', label: 'EPS/ARL', symbol: 'EA', component: AdminEpsArl, path: '/admin/eps-arl' }
 ];
 
 function AppShell() {
-  const [activePage, setActivePage] = useState('login');
+  const initialPage = navItems.find((item) => item.path === window.location.pathname)?.id ?? 'login';
+  const [activePage, setActivePage] = useState(initialPage);
   const CurrentPage = navItems.find((item) => item.id === activePage)?.component ?? Login;
+
+  function navigate(item) {
+    setActivePage(item.id);
+    window.history.pushState({}, '', item.path ?? '/');
+  }
 
   return (
     <div className="app-shell">
@@ -33,15 +43,15 @@ function AppShell() {
         </div>
 
         <nav className="nav-list" aria-label="Navegacion principal">
-          {navItems.map(({ id, label, symbol }) => (
+          {navItems.map((item) => (
             <button
-              key={id}
+              key={item.id}
               type="button"
-              className={activePage === id ? 'active' : ''}
-              onClick={() => setActivePage(id)}
+              className={activePage === item.id ? 'active' : ''}
+              onClick={() => navigate(item)}
             >
-              <span className="nav-symbol">{symbol}</span>
-              <span>{label}</span>
+              <span className="nav-symbol">{item.symbol}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>

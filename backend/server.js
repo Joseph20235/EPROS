@@ -4,6 +4,7 @@ import express from 'express';
 import morgan from 'morgan';
 
 import colaboradoresRouter from './routes/colaboradores.js';
+import epsArlRouter from './routes/epsArl.js';
 import incapacidadesRouter from './routes/incapacidades.js';
 import reportesRouter from './routes/reportes.js';
 
@@ -19,6 +20,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/colaboradores', colaboradoresRouter);
+app.use('/api/eps-arl', epsArlRouter);
 app.use('/api/incapacidades', incapacidadesRouter);
 app.use('/api/reportes', reportesRouter);
 
