@@ -25,6 +25,33 @@ const mimePermitidos = {
 };
 const cincoMb = 5 * 1024 * 1024;
 const estadosChecklist = ['Cumple', 'No cumple', 'Pendiente'];
+const estadosIncapacidad = [
+  'Registrada',
+  'En_Validacion',
+  'Transcrita',
+  'Radicada',
+  'En_Revision_EPS',
+  'Aprobada',
+  'Rechazada',
+  'En_Cobro',
+  'En_Conciliacion',
+  'Cobro_Juridico',
+  'Pagada',
+  'Cerrada_Sin_Pago'
+];
+const transicionesValidas = Object.freeze({
+  Registrada: ['En_Validacion'],
+  En_Validacion: ['Transcrita'],
+  Transcrita: ['Radicada'],
+  Radicada: ['En_Revision_EPS'],
+  En_Revision_EPS: ['Aprobada', 'Rechazada'],
+  Aprobada: ['En_Cobro'],
+  En_Cobro: ['Pagada', 'En_Conciliacion', 'Cobro_Juridico'],
+  En_Conciliacion: ['Pagada', 'Cobro_Juridico'],
+  Cobro_Juridico: ['Pagada', 'Cerrada_Sin_Pago'],
+  Rechazada: ['Transcrita', 'Cobro_Juridico']
+});
+const estadosConJustificacionObligatoria = ['Rechazada', 'Cerrada_Sin_Pago'];
 const checklistBase = [
   { clave: 'firma_medico', etiqueta: 'Firma medico' },
   { clave: 'sello_ips', etiqueta: 'Sello IPS' },
@@ -328,6 +355,35 @@ function cambiarEstadoIncapacidad({ incapacidadId, estadoNuevo, usuarioId, justi
   };
 }
 
+function obtenerTransicionesValidas(estadoActual) {
+  return transicionesValidas[estadoActual] ?? [];
+}
+
+function validarCambioEstado({ estadoActual, estadoNuevo, justificacion, esManual = false }) {
+  const errores = [];
+  const estadoDestino = String(estadoNuevo ?? '').trim();
+  const justificacionNormalizada = String(justificacion ?? '').trim();
+
+  if (!estadosIncapacidad.includes(estadoDestino)) {
+    errores.push('El estado destino no es valido.');
+  }
+
+  const transiciones = obtenerTransicionesValidas(estadoActual);
+  if (estadoDestino && !transiciones.includes(estadoDestino)) {
+    errores.push(`No se permite cambiar de ${estadoActual} a ${estadoDestino}.`);
+  }
+
+  if ((esManual || estadosConJustificacionObligatoria.includes(estadoDestino)) && !justificacionNormalizada) {
+    errores.push('La justificacion es obligatoria para este cambio de estado.');
+  }
+
+  return {
+    errores,
+    estadoDestino,
+    justificacionNormalizada
+  };
+}
+
 function obtenerIncapacidad(id) {
   return get(
     `
@@ -384,15 +440,22 @@ router.get('/:id', (req, res) => {
 
   const estados = all(
     `
-      SELECT *
-      FROM estados
-      WHERE incapacidad_id = ?
-      ORDER BY fecha_cambio ASC, id ASC
+      SELECT
+        e.*,
+        u.nombre_completo AS usuario_nombre
+      FROM estados e
+      LEFT JOIN usuarios u ON u.id = e.usuario_id
+      WHERE e.incapacidad_id = ?
+      ORDER BY e.fecha_cambio ASC, e.id ASC
     `,
     [req.params.id]
   );
 
-  return res.json({ ...incapacidad, estados });
+  return res.json({
+    ...incapacidad,
+    estados,
+    transiciones_validas: obtenerTransicionesValidas(incapacidad.estado_actual)
+  });
 });
 
 router.get('/:id/validacion', (req, res) => {
@@ -1062,30 +1125,29 @@ router.patch('/:id/estado', (req, res) => {
     return res.status(404).json({ error: 'Incapacidad no encontrada' });
   }
 
-  const { estado, usuario_id = 1, justificacion = 'Cambio manual de estado.' } = req.body;
+  const { estado, usuario_id = 1, justificacion = '' } = req.body;
+  const validacion = validarCambioEstado({
+    estadoActual: incapacidad.estado_actual,
+    estadoNuevo: estado,
+    justificacion,
+    esManual: true
+  });
+
+  if (validacion.errores.length) {
+    return res.status(400).json({
+      error: validacion.errores.join(' '),
+      estado_actual: incapacidad.estado_actual,
+      transiciones_validas: obtenerTransicionesValidas(incapacidad.estado_actual)
+    });
+  }
 
   const cambiarEstado = transaction(() => {
-    run('UPDATE estados SET es_estado_actual = 0, updated_at = CURRENT_TIMESTAMP WHERE incapacidad_id = ?', [
-      req.params.id
-    ]);
-
-    const estadoResult = run(
-      `
-        INSERT INTO estados (
-          incapacidad_id,
-          estado,
-          usuario_id,
-          justificacion,
-          es_estado_actual
-        ) VALUES (?, ?, ?, ?, 1)
-      `,
-      [req.params.id, estado, usuario_id, justificacion]
-    );
-
-    run('UPDATE incapacidades SET estado_actual_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
-      estadoResult.lastInsertRowid,
-      req.params.id
-    ]);
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo: validacion.estadoDestino,
+      usuarioId: usuario_id,
+      justificacion: validacion.justificacionNormalizada
+    });
 
     run(
       `
@@ -1101,11 +1163,34 @@ router.patch('/:id/estado', (req, res) => {
       [
         usuario_id,
         req.params.id,
-        JSON.stringify({ estado_anterior: incapacidad.estado_actual, estado_nuevo: estado })
+        JSON.stringify({
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          justificacion: validacion.justificacionNormalizada,
+          origen: 'manual'
+        })
       ]
     );
 
-    return obtenerIncapacidad(req.params.id);
+    const actualizada = obtenerIncapacidad(req.params.id);
+    const estados = all(
+      `
+        SELECT
+          e.*,
+          u.nombre_completo AS usuario_nombre
+        FROM estados e
+        LEFT JOIN usuarios u ON u.id = e.usuario_id
+        WHERE e.incapacidad_id = ?
+        ORDER BY e.fecha_cambio ASC, e.id ASC
+      `,
+      [req.params.id]
+    );
+
+    return {
+      ...actualizada,
+      estados,
+      transiciones_validas: obtenerTransicionesValidas(actualizada.estado_actual)
+    };
   });
 
   return res.json(cambiarEstado());

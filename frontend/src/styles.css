@@ -253,6 +253,46 @@ th {
   color: #667789;
 }
 
+.status-Registrada,
+.status-Aprobada,
+.status-Pagada {
+  background: #eaf7f0;
+  color: #247351;
+}
+
+.status-En_Validacion,
+.status-Transcrita,
+.status-Radicada,
+.status-En_Revision_EPS {
+  background: #fff2db;
+  color: #85540d;
+}
+
+.status-En_Cobro {
+  background: #e7f1ff;
+  color: #245d9c;
+}
+
+.status-Rechazada {
+  background: #fff0f0;
+  color: #a33b3b;
+}
+
+.status-En_Conciliacion {
+  background: #fff8cc;
+  color: #756000;
+}
+
+.status-Cobro_Juridico {
+  background: #f0eaff;
+  color: #6541a5;
+}
+
+.status-Cerrada_Sin_Pago {
+  background: #eef1f4;
+  color: #667789;
+}
+
 .admin-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -402,6 +442,113 @@ label small {
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 20px;
   align-items: start;
+}
+
+.expediente-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 20px;
+  align-items: start;
+}
+
+.state-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e8edf1;
+}
+
+.state-header span {
+  display: block;
+  margin-bottom: 8px;
+  color: #537083;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.state-header .status {
+  font-size: 16px;
+}
+
+.state-change-form {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid #dce3e8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.timeline-panel {
+  position: sticky;
+  top: 24px;
+}
+
+.timeline-panel h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+}
+
+.timeline {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 12px;
+  position: relative;
+}
+
+.timeline li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: -18px;
+  left: 7px;
+  width: 2px;
+  background: #dce3e8;
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border: 3px solid currentColor;
+  border-radius: 999px;
+}
+
+.timeline strong,
+.timeline time,
+.timeline small {
+  display: block;
+}
+
+.timeline strong {
+  color: #1b2430;
+}
+
+.timeline time,
+.timeline small {
+  color: #537083;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.timeline p {
+  margin: 6px 0;
+  color: #304457;
+  overflow-wrap: anywhere;
 }
 
 .validation-main {
@@ -599,12 +746,14 @@ label small {
     .toolbar,
     .validation-layout,
     .workflow-layout,
+    .expediente-layout,
     .detail-grid,
     .checklist-row {
     grid-template-columns: 1fr;
   }
 
-  .document-viewer {
+  .document-viewer,
+  .timeline-panel {
     position: static;
     min-height: 0;
   }

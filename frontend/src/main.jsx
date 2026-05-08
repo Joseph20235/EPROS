@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 import AdminColaboradores from './pages/AdminColaboradores.jsx';
 import AdminEpsArl from './pages/AdminEpsArl.jsx';
+import ExpedienteIncapacidad from './pages/ExpedienteIncapacidad.jsx';
 import Historial from './pages/Historial.jsx';
 import Login from './pages/Login.jsx';
 import RadicarIncapacidad from './pages/RadicarIncapacidad.jsx';
@@ -17,7 +18,7 @@ import './styles.css';
 const navItems = [
   { id: 'login', label: 'Login', symbol: 'IN', component: Login },
   { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva' },
-  { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial },
+  { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial, path: '/historial' },
   { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento },
   { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes },
   { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores' },
@@ -29,10 +30,12 @@ function AppShell() {
   const validacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/validar$/);
   const transcripcionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/transcribir$/);
   const radicacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/radicar$/);
+  const expedienteMatch = currentPath.match(/^\/incapacidades\/(\d+)$/);
   const activePage =
     (validacionMatch && 'validacion') ||
     (transcripcionMatch && 'transcripcion') ||
     (radicacionMatch && 'radicacion') ||
+    (expedienteMatch && 'historial') ||
     navItems.find((item) => item.path === currentPath)?.id ||
     'login';
   const CurrentPage = navItems.find((item) => item.id === activePage)?.component ?? Login;
@@ -61,6 +64,10 @@ function AppShell() {
 
     if (radicacionMatch) {
       return <RadicarIncapacidad incapacidadId={radicacionMatch[1]} />;
+    }
+
+    if (expedienteMatch) {
+      return <ExpedienteIncapacidad incapacidadId={expedienteMatch[1]} />;
     }
 
     return <CurrentPage />;

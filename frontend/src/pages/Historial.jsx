@@ -58,10 +58,13 @@ export default function Historial() {
                   <td>{registro.fecha_inicio}</td>
                   <td>{registro.fecha_fin}</td>
                   <td>
-                    <span className="status">{registro.estado_actual}</span>
+                    <span className={`status status-${registro.estado_actual}`}>{registro.estado_actual}</span>
                   </td>
                   <td>
                     <div className="actions-cell">
+                      <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}`)}>
+                        Ver expediente
+                      </button>
                       {registro.estado_actual === 'Registrada' && (
                         <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/validar`)}>
                           Validar

@@ -351,3 +351,55 @@ Prueba real por HTTP usando el backend en puerto temporal `4104`:
 npm.cmd run dev --prefix backend
 npm.cmd run dev --prefix frontend
 ```
+
+---
+
+## Sesion 6 - CU-05 Gestionar Estado
+
+**Estado:** completada  
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento la matriz de transiciones validas como constante en `backend/routes/incapacidades.js`.
+- El endpoint `PATCH /api/incapacidades/:id/estado` ahora:
+  - valida que el estado destino exista
+  - bloquea saltos no definidos en la matriz
+  - exige justificacion para todo cambio manual
+  - mantiene el historial en `estados`
+  - actualiza `incapacidades.estado_actual_id`
+  - registra auditoria con accion `CAMBIAR_ESTADO_INCAPACIDAD`
+- El endpoint `GET /api/incapacidades/:id` devuelve:
+  - expediente completo
+  - timeline de estados con usuario
+  - transiciones validas desde el estado actual
+- Se agrego la pantalla `/incapacidades/:id` para consultar el expediente completo.
+- El expediente muestra:
+  - estado actual con color segun el diagrama de estados
+  - boton `Cambiar estado` con solo estados validos
+  - justificacion obligatoria
+  - timeline visual con fecha, hora, usuario y justificacion
+  - boton `Iniciar cobro` cuando la incapacidad esta `Aprobada`
+- El Historial ahora permite abrir el expediente desde cada fila y aplica colores a los estados.
+
+### Archivos principales modificados
+
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido por HTTP en puerto temporal `4105` con base SQLite temporal:
+
+- `GET /api/incapacidades/4` devolvio estado `Radicada` y transicion valida `En_Revision_EPS`
+- `PATCH /api/incapacidades/4/estado` intentando saltar a `Pagada` respondio `400`
