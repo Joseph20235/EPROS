@@ -80,7 +80,17 @@ export default function Historial() {
                           Radicar
                         </button>
                       )}
-                      {!['Registrada', 'En_Validacion', 'Transcrita'].includes(registro.estado_actual) && (
+                      {registro.estado_actual === 'Aprobada' && (
+                        <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/cobro`)}>
+                          Cobro
+                        </button>
+                      )}
+                      {registro.estado_actual === 'En_Cobro' && (
+                        <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/pago`)}>
+                          Pago
+                        </button>
+                      )}
+                      {!['Registrada', 'En_Validacion', 'Transcrita', 'Aprobada', 'En_Cobro'].includes(registro.estado_actual) && (
                         <span className="empty-state">Sin accion inicial</span>
                       )}
                     </div>

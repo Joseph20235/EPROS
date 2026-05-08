@@ -104,9 +104,7 @@ export default function ExpedienteIncapacidad({ incapacidadId }) {
   }
 
   function iniciarCobro() {
-    setMostrarCambio(true);
-    setEstadoDestino('En_Cobro');
-    setJustificacion('Inicio de gestion de cobro por incapacidad aprobada.');
+    navegar(`/incapacidades/${incapacidadId}/cobro`);
   }
 
   if (cargando) {
@@ -153,7 +151,12 @@ export default function ExpedienteIncapacidad({ incapacidadId }) {
               <div className="actions-cell">
                 {expediente.estado_actual === 'Aprobada' && (
                   <button type="button" className="primary-button" onClick={iniciarCobro}>
-                    Iniciar cobro
+                    Gestionar cobro
+                  </button>
+                )}
+                {expediente.estado_actual === 'En_Cobro' && (
+                  <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/pago`)}>
+                    Registrar pago
                   </button>
                 )}
                 <button

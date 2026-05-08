@@ -392,6 +392,7 @@ function obtenerIncapacidad(id) {
         c.nombre_completo AS colaborador_nombre,
         c.numero_identificacion AS colaborador_identificacion,
         c.eps_arl_id AS colaborador_eps_arl_id,
+        c.salario_base AS salario_base,
         ea.nombre AS eps_arl_nombre,
         ea.tipo AS eps_arl_tipo,
         ea.plazo_respuesta_dias AS plazo_respuesta_dias,
@@ -404,6 +405,116 @@ function obtenerIncapacidad(id) {
     `,
     [id]
   );
+}
+
+function redondearPesos(valor) {
+  return Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
+}
+
+function calcularCobroIncapacidad(incapacidad) {
+  const dias = Number(incapacidad.numero_dias);
+  const salarioBase = Number(incapacidad.salario_base);
+  const ibcDia = salarioBase / 30;
+  const esArl =
+    incapacidad.tipo === 'ARL' ||
+    incapacidad.tipo === 'ACCIDENTE_LABORAL' ||
+    incapacidad.eps_arl_tipo === 'ARL';
+
+  if (!Number.isFinite(dias) || dias <= 0 || !Number.isFinite(salarioBase) || salarioBase < 0) {
+    return {
+      valor_calculado: 0,
+      salario_base: salarioBase || 0,
+      ibc_dia: 0,
+      es_arl: esArl,
+      desglose: [],
+      alertas: ['No fue posible calcular el cobro con los datos actuales.']
+    };
+  }
+
+  if (esArl) {
+    const valor = redondearPesos(dias * ibcDia);
+
+    return {
+      valor_calculado: valor,
+      salario_base: salarioBase,
+      ibc_dia: redondearPesos(ibcDia),
+      es_arl: true,
+      desglose: [
+        {
+          tramo: 'ARL dia 1 en adelante',
+          dias,
+          porcentaje: 1,
+          valor
+        }
+      ],
+      alertas: []
+    };
+  }
+
+  const diasEmpresa = Math.min(dias, 2);
+  const diasEps67 = Math.max(Math.min(dias, 90) - 2, 0);
+  const diasEps50 = Math.max(Math.min(dias, 180) - 90, 0);
+  const diasNoCobrables = Math.max(dias - 180, 0);
+  const valorEps67 = redondearPesos(diasEps67 * ibcDia * 0.67);
+  const valorEps50 = redondearPesos(diasEps50 * ibcDia * 0.5);
+  const alertas = [];
+
+  if (diasNoCobrables > 0) {
+    alertas.push(`${diasNoCobrables} dia(s) superan el dia 180 y no aplican para cobro a EPS.`);
+  }
+
+  return {
+    valor_calculado: redondearPesos(valorEps67 + valorEps50),
+    salario_base: salarioBase,
+    ibc_dia: redondearPesos(ibcDia),
+    es_arl: false,
+    desglose: [
+      {
+        tramo: 'Dias 1 a 2 - empresa',
+        dias: diasEmpresa,
+        porcentaje: 1,
+        valor: redondearPesos(diasEmpresa * ibcDia),
+        excluido_cobro_eps: true
+      },
+      {
+        tramo: 'Dias 3 a 90 - EPS 67%',
+        dias: diasEps67,
+        porcentaje: 0.67,
+        valor: valorEps67
+      },
+      {
+        tramo: 'Dias 91 a 180 - EPS 50%',
+        dias: diasEps50,
+        porcentaje: 0.5,
+        valor: valorEps50
+      },
+      {
+        tramo: 'Dias 181 en adelante - AFP',
+        dias: diasNoCobrables,
+        porcentaje: 0,
+        valor: 0,
+        excluido_cobro_eps: true
+      }
+    ],
+    alertas
+  };
+}
+
+function obtenerCobroActual(incapacidadId) {
+  return get(
+    `
+      SELECT *
+      FROM cobros
+      WHERE incapacidad_id = ?
+      ORDER BY fecha_cobro DESC, id DESC
+      LIMIT 1
+    `,
+    [incapacidadId]
+  );
+}
+
+function obtenerValorCobrado(cobro) {
+  return Number(cobro.valor_ajustado ?? cobro.valor_calculado);
 }
 
 router.get('/', (_req, res) => {
@@ -823,6 +934,300 @@ router.put('/:id/radicacion', (req, res) => {
   });
 
   return res.json(radicarIncapacidad());
+});
+
+router.get('/:id/cobro', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const calculo = calcularCobroIncapacidad(incapacidad);
+  const cobro = obtenerCobroActual(req.params.id);
+
+  return res.json({
+    incapacidad,
+    disponible: incapacidad.estado_actual === 'Aprobada',
+    calculo,
+    cobro
+  });
+});
+
+router.post('/:id/cobro', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (incapacidad.estado_actual !== 'Aprobada') {
+    return res.status(409).json({
+      error: `El cobro solo aplica a incapacidades Aprobada. Estado actual: ${incapacidad.estado_actual}.`
+    });
+  }
+
+  const { valor_ajustado = null, justificacion_ajuste = '', usuario_id = 1 } = req.body;
+  const calculo = calcularCobroIncapacidad(incapacidad);
+  const errores = [];
+  const ajusteFueEnviado = valor_ajustado !== null && valor_ajustado !== undefined && valor_ajustado !== '';
+  const valorAjustado = ajusteFueEnviado ? Number(valor_ajustado) : null;
+  const justificacionAjuste = String(justificacion_ajuste ?? '').trim();
+  const hayAjusteManual = ajusteFueEnviado && Math.abs(valorAjustado - calculo.valor_calculado) > 1;
+
+  if (ajusteFueEnviado && (!Number.isFinite(valorAjustado) || valorAjustado < 0)) {
+    errores.push('El valor ajustado debe ser un numero mayor o igual a cero.');
+  }
+
+  if (hayAjusteManual && !justificacionAjuste) {
+    errores.push('La justificacion del ajuste es obligatoria cuando el valor manual difiere del calculado.');
+  }
+
+  if (errores.length) {
+    return res.status(400).json({ error: errores.join(' ') });
+  }
+
+  const registrarCobro = transaction(() => {
+    const cobroResult = run(
+      `
+        INSERT INTO cobros (
+          incapacidad_id,
+          valor_calculado,
+          valor_ajustado,
+          justificacion_ajuste,
+          fecha_cobro,
+          documento_cuenta_cobro,
+          estado
+        ) VALUES (?, ?, ?, ?, DATE('now'), NULL, 'En_Proceso')
+      `,
+      [
+        req.params.id,
+        calculo.valor_calculado,
+        hayAjusteManual ? redondearPesos(valorAjustado) : null,
+        hayAjusteManual ? justificacionAjuste : null
+      ]
+    );
+
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo: 'En_Cobro',
+      usuarioId: usuario_id,
+      justificacion: 'Cuenta de cobro registrada para gestion ante EPS/ARL.'
+    });
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_COBRO', 'cobros', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        cobroResult.lastInsertRowid,
+        JSON.stringify({
+          incapacidad_id: Number(req.params.id),
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          valor_calculado: calculo.valor_calculado,
+          valor_ajustado: hayAjusteManual ? redondearPesos(valorAjustado) : null,
+          justificacion_ajuste: hayAjusteManual ? justificacionAjuste : null,
+          desglose: calculo.desglose,
+          alertas: calculo.alertas
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      cobro: get('SELECT * FROM cobros WHERE id = ?', [cobroResult.lastInsertRowid]),
+      calculo
+    };
+  });
+
+  return res.status(201).json(registrarCobro());
+});
+
+router.get('/:id/pago', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const cobro = obtenerCobroActual(req.params.id);
+  const pagos = cobro ? all('SELECT * FROM pagos WHERE cobro_id = ? ORDER BY fecha_pago DESC, id DESC', [cobro.id]) : [];
+
+  return res.json({
+    incapacidad,
+    disponible: incapacidad.estado_actual === 'En_Cobro',
+    cobro,
+    valor_cobrado: cobro ? obtenerValorCobrado(cobro) : null,
+    pagos
+  });
+});
+
+router.post('/:id/pago', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (incapacidad.estado_actual !== 'En_Cobro') {
+    return res.status(409).json({
+      error: `El pago solo aplica a incapacidades En_Cobro. Estado actual: ${incapacidad.estado_actual}.`
+    });
+  }
+
+  const cobro = obtenerCobroActual(req.params.id);
+  if (!cobro) {
+    return res.status(409).json({ error: 'No existe un cobro registrado para esta incapacidad.' });
+  }
+
+  const {
+    valor_pagado,
+    fecha_pago,
+    numero_referencia,
+    entidad_pagadora,
+    comprobante_adjunto_data,
+    usuario_id = 1
+  } = req.body;
+  const errores = [];
+  const valorPagado = Number(valor_pagado);
+  const valorCobrado = obtenerValorCobrado(cobro);
+  const numeroReferencia = String(numero_referencia ?? '').trim();
+  const entidadPagadora = String(entidad_pagadora ?? '').trim();
+  const adjunto = normalizarAdjunto(comprobante_adjunto_data);
+
+  if (!Number.isFinite(valorPagado) || valorPagado < 0) errores.push('El valor pagado debe ser mayor o igual a cero.');
+  if (!fecha_pago) errores.push('La fecha de pago es obligatoria.');
+  if (!numeroReferencia) errores.push('El numero de referencia es obligatorio.');
+  if (!entidadPagadora) errores.push('La entidad pagadora es obligatoria.');
+  if (adjunto.error) errores.push(adjunto.error.replace('adjunto', 'comprobante adjunto'));
+
+  if (errores.length) {
+    return res.status(400).json({ error: errores.join(' ') });
+  }
+
+  const registrarPago = transaction(() => {
+    const comprobanteAdjunto = guardarAdjunto({
+      incapacidadId: req.params.id,
+      adjunto,
+      prefijo: 'pago'
+    });
+    const diferencia = redondearPesos(valorCobrado - valorPagado);
+    const pagoCuadrado = Math.abs(diferencia) <= 1;
+    const estadoNuevo = pagoCuadrado ? 'Pagada' : 'En_Conciliacion';
+    const estadoCobro = pagoCuadrado ? 'Pagado' : 'En_Conciliacion';
+    const pagoResult = run(
+      `
+        INSERT INTO pagos (
+          cobro_id,
+          valor_pagado,
+          fecha_pago,
+          numero_referencia,
+          entidad_pagadora,
+          comprobante_adjunto,
+          diferencia_detectada
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        cobro.id,
+        redondearPesos(valorPagado),
+        fecha_pago,
+        numeroReferencia,
+        entidadPagadora,
+        comprobanteAdjunto,
+        diferencia
+      ]
+    );
+
+    run('UPDATE cobros SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [estadoCobro, cobro.id]);
+
+    if (!pagoCuadrado) {
+      run(
+        `
+          INSERT INTO conciliaciones (
+            incapacidad_id,
+            valor_cobrado,
+            valor_pagado,
+            diferencia,
+            justificacion_diferencia,
+            documentos_soporte
+          ) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT (incapacidad_id) DO UPDATE SET
+            valor_cobrado = excluded.valor_cobrado,
+            valor_pagado = excluded.valor_pagado,
+            diferencia = excluded.diferencia,
+            justificacion_diferencia = excluded.justificacion_diferencia,
+            documentos_soporte = excluded.documentos_soporte,
+            updated_at = CURRENT_TIMESTAMP
+        `,
+        [
+          req.params.id,
+          valorCobrado,
+          redondearPesos(valorPagado),
+          diferencia,
+          'Diferencia detectada automaticamente al registrar pago.',
+          comprobanteAdjunto
+        ]
+      );
+    }
+
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo,
+      usuarioId: usuario_id,
+      justificacion: pagoCuadrado
+        ? 'Pago registrado por el valor total cobrado. Expediente financiero cerrado.'
+        : 'Pago registrado con diferencia frente al valor cobrado. Se abre conciliacion.'
+    });
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_PAGO', 'pagos', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        pagoResult.lastInsertRowid,
+        JSON.stringify({
+          incapacidad_id: Number(req.params.id),
+          cobro_id: cobro.id,
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          valor_cobrado: valorCobrado,
+          valor_pagado: redondearPesos(valorPagado),
+          diferencia,
+          tolerancia: 1,
+          numero_referencia: numeroReferencia,
+          entidad_pagadora: entidadPagadora
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      cobro: get('SELECT * FROM cobros WHERE id = ?', [cobro.id]),
+      pago: get('SELECT * FROM pagos WHERE id = ?', [pagoResult.lastInsertRowid]),
+      conciliacion: pagoCuadrado ? null : get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]),
+      diferencia,
+      estado_nuevo: estadoNuevo
+    };
+  });
+
+  return res.status(201).json(registrarPago());
 });
 
 router.post('/', (req, res) => {

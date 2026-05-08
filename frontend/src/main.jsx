@@ -4,10 +4,12 @@ import { createRoot } from 'react-dom/client';
 
 import AdminColaboradores from './pages/AdminColaboradores.jsx';
 import AdminEpsArl from './pages/AdminEpsArl.jsx';
+import CobroIncapacidad from './pages/CobroIncapacidad.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ExpedienteIncapacidad from './pages/ExpedienteIncapacidad.jsx';
 import Historial from './pages/Historial.jsx';
 import Login from './pages/Login.jsx';
+import PagoIncapacidad from './pages/PagoIncapacidad.jsx';
 import RadicarIncapacidad from './pages/RadicarIncapacidad.jsx';
 import Registro from './pages/Registro.jsx';
 import Reportes from './pages/Reportes.jsx';
@@ -32,11 +34,15 @@ function AppShell() {
   const validacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/validar$/);
   const transcripcionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/transcribir$/);
   const radicacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/radicar$/);
+  const cobroMatch = currentPath.match(/^\/incapacidades\/(\d+)\/cobro$/);
+  const pagoMatch = currentPath.match(/^\/incapacidades\/(\d+)\/pago$/);
   const expedienteMatch = currentPath.match(/^\/incapacidades\/(\d+)$/);
   const activePage =
     (validacionMatch && 'validacion') ||
     (transcripcionMatch && 'transcripcion') ||
     (radicacionMatch && 'radicacion') ||
+    (cobroMatch && 'cobro') ||
+    (pagoMatch && 'pago') ||
     (expedienteMatch && 'historial') ||
     navItems.find((item) => item.path === currentPath)?.id ||
     'login';
@@ -66,6 +72,14 @@ function AppShell() {
 
     if (radicacionMatch) {
       return <RadicarIncapacidad incapacidadId={radicacionMatch[1]} />;
+    }
+
+    if (cobroMatch) {
+      return <CobroIncapacidad incapacidadId={cobroMatch[1]} />;
+    }
+
+    if (pagoMatch) {
+      return <PagoIncapacidad incapacidadId={pagoMatch[1]} />;
     }
 
     if (expedienteMatch) {

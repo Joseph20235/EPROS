@@ -476,3 +476,67 @@ Prueba real por HTTP usando el backend en puerto temporal `4106`:
 - `POST /api/seguimiento/5` creo una novedad de seguimiento
 - el historial de la incapacidad quedo actualizado
 - `GET /api/dashboard` devolvio 2 alertas urgentes y 5 ultimas incapacidades
+
+---
+
+## Sesion 8 - CU-07 Gestionar Cobro y CU-08 Registrar Pago
+
+**Estado:** completada  
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento CU-07 en la ruta frontend `/incapacidades/:id/cobro`.
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/:id/cobro`
+  - `POST /api/incapacidades/:id/cobro`
+- El cobro solo se permite cuando la incapacidad esta `Aprobada`.
+- El backend calcula automaticamente el valor a cobrar con:
+  - dias 1 a 2 excluidos del cobro EPS
+  - dias 3 a 90 al 67% del IBC diario
+  - dias 91 a 180 al 50% del IBC diario
+  - dias mayores a 180 excluidos con alerta
+  - ARL o accidente laboral al 100% desde el dia 1
+- La pantalla de cobro muestra salario base, IBC diario, desglose por tramo, alertas y valor final.
+- Se permite ajuste manual del valor; si difiere del calculado, exige justificacion.
+- Al registrar cobro:
+  - se crea registro en `cobros`
+  - el estado cambia a `En_Cobro`
+  - se registra auditoria con accion `REGISTRAR_COBRO`
+- Se implemento CU-08 en la ruta frontend `/incapacidades/:id/pago`.
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/:id/pago`
+  - `POST /api/incapacidades/:id/pago`
+- El pago solo se permite cuando la incapacidad esta `En_Cobro`.
+- El registro de pago incluye:
+  - `valor_pagado`
+  - `fecha_pago`
+  - `numero_referencia`
+  - `entidad_pagadora`
+  - comprobante PDF/JPG/PNG hasta 5MB
+- Al registrar pago:
+  - se guarda en `pagos`
+  - si la diferencia con el valor cobrado es menor o igual a $1, cambia a `Pagada`
+  - si hay diferencia mayor a $1, cambia a `En_Conciliacion` y crea/actualiza `conciliaciones`
+  - se actualiza el estado del cobro a `Pagado` o `En_Conciliacion`
+  - se registra auditoria con accion `REGISTRAR_PAGO`
+- El Historial y el Expediente muestran acciones contextuales para cobro y pago.
+
+### Archivos principales modificados
+
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/CobroIncapacidad.jsx`
+- `frontend/src/pages/PagoIncapacidad.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/server.js
+node --check backend/routes/incapacidades.js
+npm.cmd run build --prefix frontend
+```
