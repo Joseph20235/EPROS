@@ -42,7 +42,7 @@ Implementar el CRUD real de incapacidades desde el frontend usando el backend SQ
 ## Sesion 2 - Modulo de administracion
 
 **Estado:** completada  
-**Commit:** `2709397 Implementar modulo de administracion`
+**Commit funcional:** `d20c580 Implementar modulo de administracion`
 
 ### Hecho
 
