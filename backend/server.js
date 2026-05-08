@@ -6,9 +6,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import colaboradoresRouter from './routes/colaboradores.js';
+import dashboardRouter from './routes/dashboard.js';
 import epsArlRouter from './routes/epsArl.js';
 import incapacidadesRouter from './routes/incapacidades.js';
 import reportesRouter from './routes/reportes.js';
+import seguimientoRouter from './routes/seguimiento.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -25,9 +27,11 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/colaboradores', colaboradoresRouter);
+app.use('/api/dashboard', dashboardRouter);
 app.use('/api/eps-arl', epsArlRouter);
 app.use('/api/incapacidades', incapacidadesRouter);
 app.use('/api/reportes', reportesRouter);
+app.use('/api/seguimiento', seguimientoRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });

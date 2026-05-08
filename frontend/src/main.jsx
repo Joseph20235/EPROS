@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 import AdminColaboradores from './pages/AdminColaboradores.jsx';
 import AdminEpsArl from './pages/AdminEpsArl.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import ExpedienteIncapacidad from './pages/ExpedienteIncapacidad.jsx';
 import Historial from './pages/Historial.jsx';
 import Login from './pages/Login.jsx';
@@ -17,9 +18,10 @@ import './styles.css';
 
 const navItems = [
   { id: 'login', label: 'Login', symbol: 'IN', component: Login },
+  { id: 'dashboard', label: 'Dashboard', symbol: 'DB', component: Dashboard, path: '/dashboard' },
   { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva' },
   { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial, path: '/historial' },
-  { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento },
+  { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento, path: '/seguimiento' },
   { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes },
   { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores' },
   { id: 'admin-eps-arl', label: 'EPS/ARL', symbol: 'EA', component: AdminEpsArl, path: '/admin/eps-arl' }

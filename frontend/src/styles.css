@@ -723,6 +723,152 @@ label small {
   font-size: 34px;
 }
 
+.tracking-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 20px;
+  align-items: start;
+}
+
+.tracking-side {
+  display: grid;
+  gap: 20px;
+}
+
+.tracking-layout tbody tr,
+.dashboard-layout tbody tr {
+  cursor: pointer;
+}
+
+.selected-row {
+  background: #f2f7fb;
+}
+
+.traffic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 148px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.traffic-red {
+  background: #fff0f0;
+  color: #a33b3b;
+}
+
+.traffic-yellow {
+  background: #fff8cc;
+  color: #756000;
+}
+
+.traffic-green {
+  background: #eaf7f0;
+  color: #247351;
+}
+
+.traffic-muted {
+  background: #eef1f4;
+  color: #667789;
+}
+
+.compact-state-header {
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.compact-state-header strong {
+  display: block;
+  color: #1b2430;
+  overflow-wrap: anywhere;
+}
+
+.tracking-timeline {
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.tracking-form {
+  max-width: none;
+}
+
+.dashboard-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard-states {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.state-card {
+  border-color: transparent;
+}
+
+.state-card span,
+.state-card strong {
+  color: inherit;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.section-heading h2,
+.tracking-form h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.alert-list {
+  display: grid;
+  gap: 10px;
+}
+
+.alert-item {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: #304457;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alert-item small {
+  color: #537083;
+  font-weight: 700;
+}
+
+.alert-rojo {
+  border-color: #f0b6b6;
+  background: #fff7f7;
+}
+
+.alert-amarillo {
+  border-color: #f1df8e;
+  background: #fffdf0;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 @media (max-width: 780px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -747,8 +893,10 @@ label small {
     .validation-layout,
     .workflow-layout,
     .expediente-layout,
+    .tracking-layout,
     .detail-grid,
-    .checklist-row {
+    .checklist-row,
+    .alert-item {
     grid-template-columns: 1fr;
   }
 

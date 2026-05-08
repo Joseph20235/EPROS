@@ -62,6 +62,7 @@ CREATE TABLE incapacidades (
   estado_actual_id INTEGER,
   documento_adjunto TEXT,
   observaciones TEXT,
+  fecha_ultimo_seguimiento TEXT,
   created_by INTEGER,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

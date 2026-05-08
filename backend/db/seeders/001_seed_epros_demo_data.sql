@@ -59,20 +59,21 @@ INSERT INTO incapacidades (
   tipo,
   documento_adjunto,
   observaciones,
+  fecha_ultimo_seguimiento,
   created_by
 ) VALUES
-  (1, 'INC-REG-001', 1, '2026-01-02', '2026-01-04', 3, 'J00', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/1/incapacidad.pdf', 'Caso semilla en estado Registrada.', 1),
-  (2, 'INC-VAL-001', 2, '2026-01-06', '2026-01-10', 5, 'M545', 'Clinica Central', 'EPS', '/uploads/incapacidades/2/incapacidad.pdf', 'Caso semilla en validacion documental.', 1),
-  (3, 'INC-TRA-001', 3, '2026-01-12', '2026-01-18', 7, 'A09', 'IPS San Rafael', 'EPS', '/uploads/incapacidades/3/incapacidad.pdf', 'Caso transcrito para prueba.', 1),
-  (4, 'INC-RAD-001', 4, '2026-01-20', '2026-01-25', 6, 'S934', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/4/incapacidad.pdf', 'Caso radicado ante ARL.', 1),
-  (5, 'INC-REV-001', 5, '2026-02-01', '2026-02-08', 8, 'K529', 'IPS Occidente', 'EPS', '/uploads/incapacidades/5/incapacidad.pdf', 'Caso en revision por EPS.', 1),
-  (6, 'INC-APR-001', 1, '2026-02-10', '2026-02-14', 5, 'J029', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/6/incapacidad.pdf', 'Caso aprobado por EPS.', 1),
-  (7, 'INC-REC-001', 2, '2026-02-16', '2026-02-20', 5, 'R51', 'Clinica Central', 'EPS', '/uploads/incapacidades/7/incapacidad.pdf', 'Caso rechazado por inconsistencia documental.', 1),
-  (8, 'INC-COB-001', 3, '2026-03-01', '2026-03-12', 12, 'M255', 'IPS San Rafael', 'EPS', '/uploads/incapacidades/8/incapacidad.pdf', 'Caso en cobro.', 1),
-  (9, 'INC-CON-001', 4, '2026-03-14', '2026-03-20', 7, 'S800', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/9/incapacidad.pdf', 'Caso en conciliacion por diferencia de pago.', 1),
-  (10, 'INC-JUR-001', 5, '2026-03-22', '2026-04-05', 15, 'N390', 'IPS Occidente', 'EPS', '/uploads/incapacidades/10/incapacidad.pdf', 'Caso escalado a cobro juridico.', 1),
-  (11, 'INC-PAG-001', 1, '2026-04-08', '2026-04-10', 3, 'B349', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/11/incapacidad.pdf', 'Caso pagado.', 1),
-  (12, 'INC-CSP-001', 2, '2026-04-12', '2026-04-16', 5, 'G439', 'Clinica Central', 'EPS', '/uploads/incapacidades/12/incapacidad.pdf', 'Caso cerrado sin pago.', 1)
+  (1, 'INC-REG-001', 1, '2026-01-02', '2026-01-04', 3, 'J00', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/1/incapacidad.pdf', 'Caso semilla en estado Registrada.', NULL, 1),
+  (2, 'INC-VAL-001', 2, '2026-01-06', '2026-01-10', 5, 'M545', 'Clinica Central', 'EPS', '/uploads/incapacidades/2/incapacidad.pdf', 'Caso semilla en validacion documental.', NULL, 1),
+  (3, 'INC-TRA-001', 3, '2026-01-12', '2026-01-18', 7, 'A09', 'IPS San Rafael', 'EPS', '/uploads/incapacidades/3/incapacidad.pdf', 'Caso transcrito para prueba.', NULL, 1),
+  (4, 'INC-RAD-001', 4, '2026-01-20', '2026-01-25', 6, 'S934', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/4/incapacidad.pdf', 'Caso radicado ante ARL.', '2026-05-01', 1),
+  (5, 'INC-REV-001', 5, '2026-02-01', '2026-02-08', 8, 'K529', 'IPS Occidente', 'EPS', '/uploads/incapacidades/5/incapacidad.pdf', 'Caso en revision por EPS.', '2026-05-07', 1),
+  (6, 'INC-APR-001', 1, '2026-02-10', '2026-02-14', 5, 'J029', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/6/incapacidad.pdf', 'Caso aprobado por EPS.', NULL, 1),
+  (7, 'INC-REC-001', 2, '2026-02-16', '2026-02-20', 5, 'R51', 'Clinica Central', 'EPS', '/uploads/incapacidades/7/incapacidad.pdf', 'Caso rechazado por inconsistencia documental.', NULL, 1),
+  (8, 'INC-COB-001', 3, '2026-03-01', '2026-03-12', 12, 'M255', 'IPS San Rafael', 'EPS', '/uploads/incapacidades/8/incapacidad.pdf', 'Caso en cobro.', NULL, 1),
+  (9, 'INC-CON-001', 4, '2026-03-14', '2026-03-20', 7, 'S800', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/9/incapacidad.pdf', 'Caso en conciliacion por diferencia de pago.', NULL, 1),
+  (10, 'INC-JUR-001', 5, '2026-03-22', '2026-04-05', 15, 'N390', 'IPS Occidente', 'EPS', '/uploads/incapacidades/10/incapacidad.pdf', 'Caso escalado a cobro juridico.', NULL, 1),
+  (11, 'INC-PAG-001', 1, '2026-04-08', '2026-04-10', 3, 'B349', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/11/incapacidad.pdf', 'Caso pagado.', NULL, 1),
+  (12, 'INC-CSP-001', 2, '2026-04-12', '2026-04-16', 5, 'G439', 'Clinica Central', 'EPS', '/uploads/incapacidades/12/incapacidad.pdf', 'Caso cerrado sin pago.', NULL, 1)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO estados (
@@ -155,8 +156,8 @@ INSERT INTO radicaciones (
   fecha_limite_respuesta_eps,
   auxiliar_id
 ) VALUES
-  (4, 'RAD-ARL-2026-001', '2026-01-20', 'virtual', 'Mesa de servicio ARL', '/uploads/incapacidades/4/radicacion.pdf', '2027-01-20', 1),
-  (5, 'RAD-EPS-2026-002', '2026-02-01', 'correo', 'Analista EPS', '/uploads/incapacidades/5/radicacion.pdf', '2027-02-01', 1),
+  (4, 'RAD-ARL-2026-001', '2026-01-20', 'virtual', 'Mesa de servicio ARL', '/uploads/incapacidades/4/radicacion.pdf', '2026-05-01', 1),
+  (5, 'RAD-EPS-2026-002', '2026-02-01', 'correo', 'Analista EPS', '/uploads/incapacidades/5/radicacion.pdf', '2026-05-12', 1),
   (6, 'RAD-EPS-2026-003', '2026-02-10', 'virtual', 'Portal EPS', '/uploads/incapacidades/6/radicacion.pdf', '2027-02-10', 1)
 ON CONFLICT (numero_radicado) DO NOTHING;
 
@@ -199,7 +200,8 @@ INSERT INTO seguimientos (
   proximo_paso,
   auxiliar_id
 ) VALUES
-  (1, 5, '2026-02-05 08:00:00-05', 'correo', 'EPS confirma que el caso sigue en revision.', 'Revisar respuesta en cinco dias.', 1),
+  (1, 4, '2026-05-01', 'portal', 'ARL no ha emitido respuesta dentro del plazo esperado.', 'Escalar solicitud por canal virtual.', 1),
+  (4, 5, '2026-05-07', 'correo', 'EPS confirma que el caso sigue en revision.', 'Revisar respuesta en cinco dias.', 1),
   (2, 8, '2026-03-08 08:00:00-05', 'portal', 'Cuenta de cobro enviada por portal.', 'Verificar pago semanalmente.', 1),
   (3, 10, '2026-04-09 08:00:00-05', 'telefono', 'Sin respuesta de la entidad.', 'Preparar derecho de peticion.', 1)
 ON CONFLICT (id) DO NOTHING;

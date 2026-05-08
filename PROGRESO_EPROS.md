@@ -403,3 +403,76 @@ Tambien se valido por HTTP en puerto temporal `4105` con base SQLite temporal:
 
 - `GET /api/incapacidades/4` devolvio estado `Radicada` y transicion valida `En_Revision_EPS`
 - `PATCH /api/incapacidades/4/estado` intentando saltar a `Pagada` respondio `400`
+
+---
+
+## Sesion 7 - CU-06 Seguimiento y Dashboard
+
+**Estado:** completada
+**Commit funcional:** `Implementar CU-06 seguimiento y dashboard`
+
+### Hecho
+
+- Se implemento el caso de uso CU-06 en la ruta frontend `/seguimiento`.
+- Se agrego la columna `fecha_ultimo_seguimiento` a `incapacidades`.
+- Se agrego la ruta backend `/api/seguimiento` con:
+  - listado de incapacidades en estado `Radicada` o `En_Revision_EPS`
+  - calculo de semaforo por `fecha_limite_respuesta`
+  - orden por prioridad: rojo, amarillo, verde
+  - consulta de historial completo por incapacidad
+  - registro de novedades de seguimiento
+- Al registrar una novedad:
+  - se guarda en `seguimientos`
+  - se actualiza `incapacidades.fecha_ultimo_seguimiento`
+  - se registra auditoria con accion `REGISTRAR_SEGUIMIENTO`
+- El panel de seguimiento muestra:
+  - tabla priorizada con semaforo visual
+  - detalle e historial de la incapacidad seleccionada
+  - formulario con `fecha_contacto`, `canal_contacto`, `resultado_gestion` y `proximo_paso`
+  - enlace al expediente completo
+- Se implemento el dashboard principal en `/dashboard`.
+- Se agrego la ruta backend `/api/dashboard` con:
+  - contador de incapacidades por estado
+  - alertas urgentes rojas y amarillas
+  - ultimas 5 incapacidades registradas
+- El dashboard incluye accesos rapidos a:
+  - Registrar nueva
+  - Ver seguimiento
+  - Ver historial
+- Se ajustaron las semillas demo para incluir casos visibles de seguimiento vencido y por vencer.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/db/seeders/001_seed_epros_demo_data.sql`
+- `backend/routes/seguimiento.js`
+- `backend/routes/dashboard.js`
+- `backend/server.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Seguimiento.jsx`
+- `frontend/src/pages/Dashboard.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/seguimiento.js
+node --check backend/routes/dashboard.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu06-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP usando el backend en puerto temporal `4106`:
+
+- `GET /api/seguimiento` devolvio 2 incapacidades activas y la primera prioridad fue `rojo`
+- `POST /api/seguimiento/5` creo una novedad de seguimiento
+- el historial de la incapacidad quedo actualizado
+- `GET /api/dashboard` devolvio 2 alertas urgentes y 5 ultimas incapacidades
