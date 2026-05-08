@@ -261,3 +261,93 @@ npm.cmd run db:init --prefix backend
 npm.cmd run dev --prefix backend
 npm.cmd run dev --prefix frontend
 ```
+
+---
+
+## Sesion 5 - CU-03 Transcribir y CU-04 Radicar
+
+**Estado:** completada  
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento el caso de uso CU-03 en la ruta frontend `/incapacidades/:id/transcribir`.
+- Se agrego la tabla `transcripciones` al esquema SQLite con los campos:
+  - `codigo_cie10_detallado`
+  - `tipo_licencia_medica`
+  - `medico_tratante`
+  - `numero_registro_medico`
+  - `ips_institucion`
+  - `auxiliar_id`
+  - `fecha_transcripcion`
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/:id/transcripcion`
+  - `PUT /api/incapacidades/:id/transcripcion`
+- La transcripcion solo se permite cuando el estado actual es `En_Validacion`.
+- El formulario de transcripcion se precarga con datos de la incapacidad y conserva borrador en `localStorage` con autoguardado cada 2 minutos.
+- Al guardar la transcripcion:
+  - se crea o actualiza el registro en `transcripciones`
+  - el estado cambia a `Transcrita`
+  - se registra historial en `estados`
+  - se registra auditoria con accion `TRANSCRIBIR_INCAPACIDAD`
+- Se implemento el caso de uso CU-04 en la ruta frontend `/incapacidades/:id/radicar`.
+- Se agregaron endpoints backend:
+  - `GET /api/incapacidades/:id/radicacion`
+  - `PUT /api/incapacidades/:id/radicacion`
+- La radicacion solo se permite cuando el estado actual es `Transcrita`.
+- La radicacion valida:
+  - `numero_radicado` obligatorio y unico frente a otras incapacidades
+  - `fecha_radicacion` obligatoria
+  - `canal` dentro de `presencial`, `virtual`, `correo`
+  - comprobante PDF/JPG/PNG hasta 5MB
+- La fecha limite de respuesta se calcula automaticamente usando `eps_arl.plazo_respuesta_dias` de la EPS/ARL del colaborador.
+- Al confirmar la radicacion:
+  - se crea o actualiza el registro en `radicaciones`
+  - se guarda el comprobante en `backend/uploads/incapacidades/:id/`
+  - el estado cambia a `Radicada`
+  - se crea un registro de seguimiento tipo alerta para la fecha limite de respuesta
+  - se registra auditoria con accion `RADICAR_INCAPACIDAD`
+- Se conecto el Historial al endpoint real `/api/incapacidades`.
+- El Historial ahora muestra acciones contextuales para validar, transcribir o radicar segun el estado actual.
+- Se agregaron datos semilla para transcripciones de incapacidades ya avanzadas.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/db/seeders/001_seed_epros_demo_data.sql`
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/TranscribirIncapacidad.jsx`
+- `frontend/src/pages/RadicarIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu03-cu04-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP usando el backend en puerto temporal `4104`:
+
+- `PUT /api/incapacidades/2/transcripcion` cambio el estado a `Transcrita`
+- `PUT /api/incapacidades/2/radicacion` cambio el estado a `Radicada`
+- la fecha limite calculada para Nueva EPS fue `2027-05-07`
+- el historial termino con 3 estados para la incapacidad probada
+
+### Comandos utiles
+
+```bash
+npm.cmd run dev --prefix backend
+npm.cmd run dev --prefix frontend
+```

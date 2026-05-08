@@ -125,6 +125,22 @@ CREATE TABLE validaciones (
   FOREIGN KEY (aprobada_por) REFERENCES usuarios(id) ON UPDATE CASCADE
 );
 
+CREATE TABLE transcripciones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  incapacidad_id INTEGER NOT NULL UNIQUE,
+  codigo_cie10_detallado TEXT NOT NULL,
+  tipo_licencia_medica TEXT NOT NULL,
+  medico_tratante TEXT NOT NULL,
+  numero_registro_medico TEXT NOT NULL,
+  ips_institucion TEXT NOT NULL,
+  auxiliar_id INTEGER,
+  fecha_transcripcion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (incapacidad_id) REFERENCES incapacidades(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (auxiliar_id) REFERENCES usuarios(id) ON UPDATE CASCADE
+);
+
 CREATE TABLE radicaciones (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   incapacidad_id INTEGER NOT NULL UNIQUE,
@@ -247,6 +263,7 @@ CREATE INDEX idx_incapacidades_tipo ON incapacidades (tipo);
 CREATE INDEX idx_estados_incapacidad_id ON estados (incapacidad_id);
 CREATE INDEX idx_estados_estado ON estados (estado);
 CREATE INDEX idx_estados_fecha_cambio ON estados (fecha_cambio);
+CREATE INDEX idx_transcripciones_incapacidad_id ON transcripciones (incapacidad_id);
 CREATE INDEX idx_radicaciones_fecha_limite_respuesta_eps ON radicaciones (fecha_limite_respuesta_eps);
 CREATE INDEX idx_cobros_incapacidad_id ON cobros (incapacidad_id);
 CREATE INDEX idx_cobros_estado ON cobros (estado);

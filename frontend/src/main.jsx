@@ -6,9 +6,11 @@ import AdminColaboradores from './pages/AdminColaboradores.jsx';
 import AdminEpsArl from './pages/AdminEpsArl.jsx';
 import Historial from './pages/Historial.jsx';
 import Login from './pages/Login.jsx';
+import RadicarIncapacidad from './pages/RadicarIncapacidad.jsx';
 import Registro from './pages/Registro.jsx';
 import Reportes from './pages/Reportes.jsx';
 import Seguimiento from './pages/Seguimiento.jsx';
+import TranscribirIncapacidad from './pages/TranscribirIncapacidad.jsx';
 import ValidarIncapacidad from './pages/ValidarIncapacidad.jsx';
 import './styles.css';
 
@@ -25,9 +27,14 @@ const navItems = [
 function AppShell() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const validacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/validar$/);
-  const activePage = validacionMatch
-    ? 'validacion'
-    : navItems.find((item) => item.path === currentPath)?.id ?? 'login';
+  const transcripcionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/transcribir$/);
+  const radicacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/radicar$/);
+  const activePage =
+    (validacionMatch && 'validacion') ||
+    (transcripcionMatch && 'transcripcion') ||
+    (radicacionMatch && 'radicacion') ||
+    navItems.find((item) => item.path === currentPath)?.id ||
+    'login';
   const CurrentPage = navItems.find((item) => item.id === activePage)?.component ?? Login;
 
   function navigate(item) {
@@ -46,6 +53,14 @@ function AppShell() {
   function renderPage() {
     if (validacionMatch) {
       return <ValidarIncapacidad incapacidadId={validacionMatch[1]} />;
+    }
+
+    if (transcripcionMatch) {
+      return <TranscribirIncapacidad incapacidadId={transcripcionMatch[1]} />;
+    }
+
+    if (radicacionMatch) {
+      return <RadicarIncapacidad incapacidadId={radicacionMatch[1]} />;
     }
 
     return <CurrentPage />;

@@ -36,6 +36,7 @@ const accidentes = ['ACCIDENTE_LABORAL', 'ACCIDENTE_TRANSITO'];
 const licencias = ['LICENCIA_MATERNIDAD', 'LICENCIA_PATERNIDAD'];
 
 let validacionesSchemaVerificado = false;
+let transcripcionesSchemaVerificado = false;
 
 function asegurarSchemaValidaciones() {
   if (validacionesSchemaVerificado) return;
@@ -50,6 +51,31 @@ function asegurarSchemaValidaciones() {
   validacionesSchemaVerificado = true;
 }
 
+function asegurarSchemaTranscripciones() {
+  if (transcripcionesSchemaVerificado) return;
+
+  run(`
+    CREATE TABLE IF NOT EXISTS transcripciones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      incapacidad_id INTEGER NOT NULL UNIQUE,
+      codigo_cie10_detallado TEXT NOT NULL,
+      tipo_licencia_medica TEXT NOT NULL,
+      medico_tratante TEXT NOT NULL,
+      numero_registro_medico TEXT NOT NULL,
+      ips_institucion TEXT NOT NULL,
+      auxiliar_id INTEGER,
+      fecha_transcripcion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (incapacidad_id) REFERENCES incapacidades(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      FOREIGN KEY (auxiliar_id) REFERENCES usuarios(id) ON UPDATE CASCADE
+    )
+  `);
+  run('CREATE INDEX IF NOT EXISTS idx_transcripciones_incapacidad_id ON transcripciones (incapacidad_id)');
+
+  transcripcionesSchemaVerificado = true;
+}
+
 function calcularDias(fechaInicio, fechaFin) {
   const inicio = new Date(`${fechaInicio}T00:00:00`);
   const fin = new Date(`${fechaFin}T00:00:00`);
@@ -61,6 +87,14 @@ function calcularDias(fechaInicio, fechaFin) {
 
 function validarCie10(codigo) {
   return /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(String(codigo ?? '').trim().toUpperCase());
+}
+
+function sumarDias(fecha, dias) {
+  const base = new Date(`${fecha}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return null;
+
+  base.setDate(base.getDate() + Number(dias));
+  return base.toISOString().slice(0, 10);
 }
 
 function construirChecklist(incapacidad) {
@@ -133,6 +167,11 @@ function normalizarChecklist(incapacidad, itemsRecibidos = [], validacionExisten
 function obtenerValidacion(incapacidadId) {
   asegurarSchemaValidaciones();
   return get('SELECT * FROM validaciones WHERE incapacidad_id = ?', [incapacidadId]);
+}
+
+function obtenerTranscripcion(incapacidadId) {
+  asegurarSchemaTranscripciones();
+  return get('SELECT * FROM transcripciones WHERE incapacidad_id = ?', [incapacidadId]);
 }
 
 function mapearChecklistABooleanos(items) {
@@ -246,9 +285,9 @@ function normalizarAdjunto(documentoAdjuntoData) {
   return { buffer, extension, mimeType };
 }
 
-function guardarAdjunto({ incapacidadId, adjunto }) {
+function guardarAdjunto({ incapacidadId, adjunto, prefijo = 'soporte' }) {
   const carpeta = path.join(backendDir, 'uploads', 'incapacidades', String(incapacidadId));
-  const nombreArchivo = `soporte-${Date.now()}${adjunto.extension}`;
+  const nombreArchivo = `${prefijo}-${Date.now()}${adjunto.extension}`;
   const rutaDisco = path.join(carpeta, nombreArchivo);
   const rutaPublica = `/uploads/incapacidades/${incapacidadId}/${nombreArchivo}`;
 
@@ -256,6 +295,37 @@ function guardarAdjunto({ incapacidadId, adjunto }) {
   fs.writeFileSync(rutaDisco, adjunto.buffer);
 
   return rutaPublica;
+}
+
+function cambiarEstadoIncapacidad({ incapacidadId, estadoNuevo, usuarioId, justificacion }) {
+  const incapacidad = obtenerIncapacidad(incapacidadId);
+
+  run('UPDATE estados SET es_estado_actual = 0, updated_at = CURRENT_TIMESTAMP WHERE incapacidad_id = ?', [
+    incapacidadId
+  ]);
+
+  const estadoResult = run(
+    `
+      INSERT INTO estados (
+        incapacidad_id,
+        estado,
+        usuario_id,
+        justificacion,
+        es_estado_actual
+      ) VALUES (?, ?, ?, ?, 1)
+    `,
+    [incapacidadId, estadoNuevo, usuarioId, justificacion]
+  );
+
+  run('UPDATE incapacidades SET estado_actual_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+    estadoResult.lastInsertRowid,
+    incapacidadId
+  ]);
+
+  return {
+    estadoAnterior: incapacidad?.estado_actual ?? null,
+    estadoNuevo
+  };
 }
 
 function obtenerIncapacidad(id) {
@@ -268,6 +338,7 @@ function obtenerIncapacidad(id) {
         c.eps_arl_id AS colaborador_eps_arl_id,
         ea.nombre AS eps_arl_nombre,
         ea.tipo AS eps_arl_tipo,
+        ea.plazo_respuesta_dias AS plazo_respuesta_dias,
         e.estado AS estado_actual
       FROM incapacidades i
       JOIN colaboradores c ON c.id = i.colaborador_id
@@ -347,6 +418,348 @@ router.get('/:id/validacion', (req, res) => {
           observaciones: ''
         }
   });
+});
+
+router.get('/:id/transcripcion', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const transcripcion = obtenerTranscripcion(req.params.id);
+
+  return res.json({
+    incapacidad,
+    disponible: incapacidad.estado_actual === 'En_Validacion',
+    transcripcion: transcripcion ?? {
+      incapacidad_id: Number(req.params.id),
+      codigo_cie10_detallado: incapacidad.diagnostico_cie10 ?? '',
+      tipo_licencia_medica: incapacidad.tipo ? String(incapacidad.tipo).replaceAll('_', ' ') : '',
+      medico_tratante: '',
+      numero_registro_medico: '',
+      ips_institucion: incapacidad.entidad_emisora ?? ''
+    }
+  });
+});
+
+router.put('/:id/transcripcion', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (incapacidad.estado_actual !== 'En_Validacion') {
+    return res.status(409).json({
+      error: `La transcripcion solo aplica a incapacidades En_Validacion. Estado actual: ${incapacidad.estado_actual}.`
+    });
+  }
+
+  const {
+    codigo_cie10_detallado,
+    tipo_licencia_medica,
+    medico_tratante,
+    numero_registro_medico,
+    ips_institucion,
+    usuario_id = 1
+  } = req.body;
+  const errores = [];
+  const cie10 = String(codigo_cie10_detallado ?? '').trim().toUpperCase();
+
+  if (!cie10) errores.push('El codigo CIE-10 detallado es obligatorio.');
+  if (cie10 && !validarCie10(cie10)) errores.push('El codigo CIE-10 detallado debe tener formato valido.');
+  if (!String(tipo_licencia_medica ?? '').trim()) errores.push('El tipo de licencia medica es obligatorio.');
+  if (!String(medico_tratante ?? '').trim()) errores.push('El nombre del medico tratante es obligatorio.');
+  if (!String(numero_registro_medico ?? '').trim()) errores.push('El numero de registro medico es obligatorio.');
+  if (!String(ips_institucion ?? '').trim()) errores.push('La IPS o institucion es obligatoria.');
+
+  if (errores.length) {
+    return res.status(400).json({ error: errores.join(' ') });
+  }
+
+  const guardarTranscripcion = transaction(() => {
+    asegurarSchemaTranscripciones();
+
+    const existente = obtenerTranscripcion(req.params.id);
+    if (existente) {
+      run(
+        `
+          UPDATE transcripciones
+          SET
+            codigo_cie10_detallado = ?,
+            tipo_licencia_medica = ?,
+            medico_tratante = ?,
+            numero_registro_medico = ?,
+            ips_institucion = ?,
+            auxiliar_id = ?,
+            fecha_transcripcion = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE incapacidad_id = ?
+        `,
+        [
+          cie10,
+          String(tipo_licencia_medica).trim(),
+          String(medico_tratante).trim(),
+          String(numero_registro_medico).trim(),
+          String(ips_institucion).trim(),
+          usuario_id,
+          req.params.id
+        ]
+      );
+    } else {
+      run(
+        `
+          INSERT INTO transcripciones (
+            incapacidad_id,
+            codigo_cie10_detallado,
+            tipo_licencia_medica,
+            medico_tratante,
+            numero_registro_medico,
+            ips_institucion,
+            auxiliar_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          req.params.id,
+          cie10,
+          String(tipo_licencia_medica).trim(),
+          String(medico_tratante).trim(),
+          String(numero_registro_medico).trim(),
+          String(ips_institucion).trim(),
+          usuario_id
+        ]
+      );
+    }
+
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo: 'Transcrita',
+      usuarioId: usuario_id,
+      justificacion: 'Transcripcion de incapacidad completada.'
+    });
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'TRANSCRIBIR_INCAPACIDAD', 'incapacidades', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        req.params.id,
+        JSON.stringify({
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          codigo_cie10_detallado: cie10,
+          ips_institucion: String(ips_institucion).trim()
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      transcripcion: obtenerTranscripcion(req.params.id)
+    };
+  });
+
+  return res.json(guardarTranscripcion());
+});
+
+router.get('/:id/radicacion', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const radicacion = get('SELECT * FROM radicaciones WHERE incapacidad_id = ?', [req.params.id]);
+
+  return res.json({
+    incapacidad,
+    disponible: incapacidad.estado_actual === 'Transcrita',
+    radicacion,
+    plazo_respuesta_dias: incapacidad.plazo_respuesta_dias
+  });
+});
+
+router.put('/:id/radicacion', (req, res) => {
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (incapacidad.estado_actual !== 'Transcrita') {
+    return res.status(409).json({
+      error: `La radicacion solo aplica a incapacidades Transcrita. Estado actual: ${incapacidad.estado_actual}.`
+    });
+  }
+
+  const {
+    numero_radicado,
+    fecha_radicacion,
+    canal,
+    funcionario_eps_receptor = '',
+    comprobante_adjunto_data,
+    usuario_id = 1
+  } = req.body;
+  const canales = ['presencial', 'virtual', 'correo'];
+  const errores = [];
+  const numeroRadicado = String(numero_radicado ?? '').trim();
+  const adjunto = normalizarAdjunto(comprobante_adjunto_data);
+  const fechaLimite = sumarDias(fecha_radicacion, incapacidad.plazo_respuesta_dias);
+
+  if (!numeroRadicado) errores.push('El numero radicado es obligatorio.');
+  if (!fecha_radicacion) errores.push('La fecha de radicacion es obligatoria.');
+  if (fecha_radicacion && !fechaLimite) errores.push('La fecha de radicacion no tiene un formato valido.');
+  if (!canales.includes(canal)) errores.push('El canal de radicacion no es valido.');
+  if (adjunto.error) errores.push(adjunto.error.replace('adjunto', 'comprobante adjunto'));
+
+  const duplicado = numeroRadicado
+    ? get('SELECT id FROM radicaciones WHERE numero_radicado = ? AND incapacidad_id <> ?', [
+        numeroRadicado,
+        req.params.id
+      ])
+    : null;
+
+  if (duplicado) errores.push('Ya existe una radicacion con ese numero radicado.');
+
+  if (errores.length) {
+    return res.status(400).json({ error: errores.join(' ') });
+  }
+
+  const radicarIncapacidad = transaction(() => {
+    const comprobanteAdjunto = guardarAdjunto({
+      incapacidadId: req.params.id,
+      adjunto,
+      prefijo: 'radicacion'
+    });
+
+    const existente = get('SELECT id FROM radicaciones WHERE incapacidad_id = ?', [req.params.id]);
+    if (existente) {
+      run(
+        `
+          UPDATE radicaciones
+          SET
+            numero_radicado = ?,
+            fecha_radicacion = ?,
+            canal = ?,
+            funcionario_eps_receptor = ?,
+            comprobante_adjunto = ?,
+            fecha_limite_respuesta_eps = ?,
+            auxiliar_id = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE incapacidad_id = ?
+        `,
+        [
+          numeroRadicado,
+          fecha_radicacion,
+          canal,
+          String(funcionario_eps_receptor).trim() || null,
+          comprobanteAdjunto,
+          fechaLimite,
+          usuario_id,
+          req.params.id
+        ]
+      );
+    } else {
+      run(
+        `
+          INSERT INTO radicaciones (
+            incapacidad_id,
+            numero_radicado,
+            fecha_radicacion,
+            canal,
+            funcionario_eps_receptor,
+            comprobante_adjunto,
+            fecha_limite_respuesta_eps,
+            auxiliar_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          req.params.id,
+          numeroRadicado,
+          fecha_radicacion,
+          canal,
+          String(funcionario_eps_receptor).trim() || null,
+          comprobanteAdjunto,
+          fechaLimite,
+          usuario_id
+        ]
+      );
+    }
+
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo: 'Radicada',
+      usuarioId: usuario_id,
+      justificacion: 'Radicacion de incapacidad confirmada ante EPS/ARL.'
+    });
+
+    run(
+      `
+        INSERT INTO seguimientos (
+          incapacidad_id,
+          fecha_contacto,
+          canal_contacto,
+          resultado_gestion,
+          proximo_paso,
+          auxiliar_id
+        ) VALUES (?, ?, 'sistema', ?, ?, ?)
+      `,
+      [
+        req.params.id,
+        fechaLimite,
+        `Alerta automatica: vence plazo de respuesta de ${incapacidad.eps_arl_nombre}.`,
+        'Realizar seguimiento a respuesta de EPS/ARL.',
+        usuario_id
+      ]
+    );
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'RADICAR_INCAPACIDAD', 'incapacidades', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        req.params.id,
+        JSON.stringify({
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          numero_radicado: numeroRadicado,
+          fecha_radicacion,
+          fecha_limite_respuesta: fechaLimite,
+          eps_arl: incapacidad.eps_arl_nombre,
+          plazo_respuesta_dias: incapacidad.plazo_respuesta_dias
+        })
+      ]
+    );
+
+    const radicacion = get('SELECT * FROM radicaciones WHERE incapacidad_id = ?', [req.params.id]);
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      radicacion: {
+        ...radicacion,
+        fecha_limite_respuesta: radicacion.fecha_limite_respuesta_eps
+      }
+    };
+  });
+
+  return res.json(radicarIncapacidad());
 });
 
 router.post('/', (req, res) => {

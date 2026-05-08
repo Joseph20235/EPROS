@@ -129,6 +129,22 @@ INSERT INTO validaciones (
   (4, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, 'Validacion aprobada para accidente laboral.', 1, '2026-01-20 09:15:00-05')
 ON CONFLICT (incapacidad_id) DO NOTHING;
 
+INSERT INTO transcripciones (
+  incapacidad_id,
+  codigo_cie10_detallado,
+  tipo_licencia_medica,
+  medico_tratante,
+  numero_registro_medico,
+  ips_institucion,
+  auxiliar_id,
+  fecha_transcripcion
+) VALUES
+  (3, 'A09.0', 'Incapacidad por enfermedad general', 'Julian Ramirez Mora', 'RM-458921', 'IPS San Rafael', 1, '2026-01-12 10:00:00-05'),
+  (4, 'S93.4', 'Accidente laboral', 'Carolina Mejia Torres', 'RM-774120', 'Clinica del Trabajo', 1, '2026-01-20 10:15:00-05'),
+  (5, 'K52.9', 'Incapacidad por enfermedad general', 'Andres Felipe Rojas', 'RM-630442', 'IPS Occidente', 1, '2026-02-01 13:30:00-05'),
+  (6, 'J02.9', 'Incapacidad por enfermedad general', 'Natalia Duarte', 'RM-982114', 'IPS Norte', 1, '2026-02-10 14:20:00-05')
+ON CONFLICT (incapacidad_id) DO NOTHING;
+
 INSERT INTO radicaciones (
   incapacidad_id,
   numero_radicado,
