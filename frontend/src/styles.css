@@ -328,6 +328,68 @@ th {
   color: #a33b3b;
 }
 
+.registro-form {
+  max-width: 980px;
+}
+
+label span strong {
+  color: #b63333;
+}
+
+label small {
+  color: #537083;
+  font-weight: 600;
+}
+
+.autocomplete-field {
+  position: relative;
+}
+
+.autocomplete-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid #cbd6dd;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(16, 32, 48, 0.14);
+}
+
+.autocomplete-list button {
+  display: grid;
+  gap: 4px;
+  border: 0;
+  border-bottom: 1px solid #e8edf1;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #304457;
+  cursor: pointer;
+  text-align: left;
+}
+
+.autocomplete-list button:hover {
+  background: #f2f7fb;
+}
+
+.autocomplete-list span {
+  color: #537083;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.success-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .task-list {
   display: grid;
   gap: 12px;

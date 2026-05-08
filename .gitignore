@@ -8,6 +8,7 @@ coverage/
 
 backend/database/*.sqlite
 backend/database/*.sqlite-*
+backend/uploads/
 
 .env
 .env.local

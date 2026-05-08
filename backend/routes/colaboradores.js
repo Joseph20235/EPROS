@@ -101,6 +101,7 @@ router.get('/', (req, res) => {
       c.nombre_completo,
       c.cargo,
       c.area,
+      c.eps_arl_id,
       c.salario_base,
       c.activo,
       e.nombre AS eps_arl_nombre,

@@ -111,6 +111,76 @@ npm.cmd run start --prefix backend
 npm.cmd run dev --prefix frontend
 ```
 
-### Siguiente sesion sugerida
+---
 
-Implementar el CRUD completo de incapacidades desde el frontend y conectarlo con el flujo de estados, validacion documental y auditoria.
+## Sesion 3 - CU-01 Registrar Incapacidad
+
+**Estado:** completada  
+**Commit funcional:** `Implementar CU-01 registro de incapacidades`
+
+### Hecho
+
+- Se implemento el caso de uso CU-01 en la ruta frontend `/incapacidades/nueva`.
+- Se reemplazo el boceto de registro por un formulario funcional conectado al backend.
+- Se agrego buscador/autocompletado de colaborador por numero de identificacion o nombre.
+- Se autocompleta la EPS/ARL desde el perfil del colaborador seleccionado.
+- Se agregaron los campos requeridos del modelo:
+  - `numero_incapacidad`
+  - `fecha_inicio`
+  - `fecha_fin`
+  - `numero_dias`
+  - `diagnostico_cie10`
+  - `entidad_emisora`
+  - `tipo`
+  - `observaciones`
+- Se calcula automaticamente `numero_dias` entre fecha inicio y fecha fin.
+- Se agrego selector de tipo usando el ENUM definido para incapacidades.
+- Se implemento carga de adjunto PDF, JPG o PNG con limite de 5MB.
+- El backend guarda los adjuntos en `backend/uploads/incapacidades/:id/` y expone `/uploads` como ruta estatica.
+- Se agregaron validaciones en frontend y backend:
+  - colaborador obligatorio
+  - numero de incapacidad obligatorio
+  - fechas obligatorias
+  - fecha fin mayor o igual a fecha inicio
+  - CIE-10 con formato valido, por ejemplo `A09` o `J11.1`
+  - entidad emisora obligatoria
+  - tipo obligatorio
+  - adjunto obligatorio y con tipo/tamano permitido
+  - no duplicar incapacidad para el mismo colaborador y numero
+- Al guardar, el backend crea:
+  - registro en `incapacidades`
+  - primer registro en `estados` con estado `Registrada`
+  - auditoria con accion `CREAR_INCAPACIDAD`
+- Se muestra mensaje de exito con el ID generado y boton para ir a validar.
+- Se ajusto la navegacion para que Registro apunte a `/incapacidades/nueva`.
+
+### Archivos principales modificados
+
+- `backend/server.js`
+- `backend/routes/incapacidades.js`
+- `backend/routes/colaboradores.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Registro.jsx`
+- `frontend/src/styles.css`
+
+### Verificacion
+
+```bash
+node --check backend/server.js
+node --check backend/routes/incapacidades.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se hizo una prueba real del endpoint `POST /api/incapacidades` usando una base SQLite temporal:
+
+- creo la incapacidad con estado inicial `Registrada`
+- calculo `numero_dias`
+- guardo el adjunto en `/uploads/incapacidades/:id/`
+- rechazo correctamente un duplicado por colaborador y numero de incapacidad
+
+### Comandos utiles
+
+```bash
+npm.cmd run dev --prefix backend
+npm.cmd run dev --prefix frontend
+```

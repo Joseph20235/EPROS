@@ -13,7 +13,7 @@ import './styles.css';
 
 const navItems = [
   { id: 'login', label: 'Login', symbol: 'IN', component: Login },
-  { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro },
+  { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva' },
   { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial },
   { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento },
   { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes },
