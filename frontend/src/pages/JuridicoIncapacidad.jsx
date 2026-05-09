@@ -175,7 +175,7 @@ export default function JuridicoIncapacidad({ incapacidadId }) {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-13</p>
+          <p>Gestión humana</p>
           <h1>Cobro juridico</h1>
         </div>
         <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}`)}>

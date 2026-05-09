@@ -163,7 +163,7 @@ export default function Alertas() {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-11</p>
+          <p>Gestión humana</p>
           <h1>Alertas prolongadas</h1>
         </div>
         <button type="button" className="primary-button" onClick={ejecutarMonitoreo} disabled={ejecutando}>

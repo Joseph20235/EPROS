@@ -177,7 +177,7 @@ export default function RadicarIncapacidad({ incapacidadId }) {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-04</p>
+          <p>Gestión humana</p>
           <h1>Radicar incapacidad</h1>
         </div>
         <span className="status">{incapacidad.estado_actual}</span>

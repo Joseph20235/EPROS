@@ -142,7 +142,7 @@ export default function ValidarIncapacidad({ incapacidadId }) {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-02</p>
+          <p>Gestión humana</p>
           <h1>Validar documentacion</h1>
         </div>
         <span className="status">{incapacidad.estado_actual}</span>

@@ -128,7 +128,7 @@ export default function Seguimiento() {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-06</p>
+          <p>Gestión humana</p>
           <h1>Seguimiento</h1>
         </div>
       </header>

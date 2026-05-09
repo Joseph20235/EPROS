@@ -198,7 +198,7 @@ export default function Registro() {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-01</p>
+          <p>Gestión humana</p>
           <h1>Registrar incapacidad</h1>
         </div>
       </header>

@@ -148,7 +148,7 @@ export default function TranscribirIncapacidad({ incapacidadId }) {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-03</p>
+          <p>Gestión humana</p>
           <h1>Transcribir incapacidad</h1>
         </div>
         <span className="status">{incapacidad.estado_actual}</span>

@@ -199,7 +199,7 @@ export default function RechazoIncapacidad({ incapacidadId }) {
     <section className="page wide-page">
       <header className="page-header">
         <div>
-          <p>CU-12</p>
+          <p>Gestión humana</p>
           <h1>Gestionar rechazo</h1>
         </div>
         <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}`)}>
