@@ -26,9 +26,16 @@ INSERT INTO usuarios (
   rol,
   activo
 ) VALUES
-  (1, 'Mariana Rios Lopez', 'mariana.rios@epros.test', '$2b$10$demo.hash.no.usar.en.produccion', 'Auxiliar_Talento_Humano', TRUE),
-  (2, 'Carlos Andres Nieto', 'carlos.nieto@epros.test', '$2b$10$demo.hash.no.usar.en.produccion', 'Administrador', TRUE)
-ON CONFLICT (id) DO NOTHING;
+  (1, 'Administrador EPROS', 'admin@epros.com', 'pbkdf2$120000$09ff092ad4fb0c87187d36fa99f1217a$5874fea006a8d5a7fad0c30c9a4956cc57f2a85a06daddf79e14d3896af0a08e', 'ADMIN', TRUE),
+  (2, 'Auxiliar EPROS', 'auxiliar@epros.com', 'pbkdf2$120000$541a7bcb2685f0fca528f8dae1099316$ec745054f39d73b38a7cf6e153f9fe6549bb7eb779d7bf7572c084465ee7e0cc', 'AUXILIAR', TRUE),
+  (3, 'Consulta EPROS', 'consulta@epros.com', 'pbkdf2$120000$fd6b3f9f2375e09f7e7ecf2e49b7c7ce$c17ec4efc7290d7c502bba6c6165d87db4855941272b23d62ed5590bc69ef455', 'READONLY', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+  nombre_completo = excluded.nombre_completo,
+  correo = excluded.correo,
+  password_hash = excluded.password_hash,
+  rol = excluded.rol,
+  activo = excluded.activo,
+  updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO colaboradores (
   id,

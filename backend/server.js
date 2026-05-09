@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import authRouter from './routes/auth.js';
 import alertasRouter from './routes/alertas.js';
 import colaboradoresRouter from './routes/colaboradores.js';
 import dashboardRouter from './routes/dashboard.js';
@@ -12,6 +13,7 @@ import epsArlRouter from './routes/epsArl.js';
 import incapacidadesRouter from './routes/incapacidades.js';
 import reportesRouter from './routes/reportes.js';
 import seguimientoRouter from './routes/seguimiento.js';
+import { autenticar, controlarAcceso } from './middleware/auth.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -23,6 +25,8 @@ app.use(express.json({ limit: '8mb' }));
 app.use(morgan('dev'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/auth', authRouter);
+app.use('/api', autenticar, controlarAcceso);
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'epros-backend' });
 });

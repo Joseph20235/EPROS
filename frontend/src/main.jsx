@@ -20,22 +20,27 @@ import Reportes from './pages/Reportes.jsx';
 import Seguimiento from './pages/Seguimiento.jsx';
 import TranscribirIncapacidad from './pages/TranscribirIncapacidad.jsx';
 import ValidarIncapacidad from './pages/ValidarIncapacidad.jsx';
+import { instalarFetchAutenticado, logout, obtenerSesion, puedeAcceder } from './auth.js';
 import './styles.css';
 
+instalarFetchAutenticado();
+
 const navItems = [
-  { id: 'login', label: 'Login', symbol: 'IN', component: Login },
-  { id: 'dashboard', label: 'Dashboard', symbol: 'DB', component: Dashboard, path: '/dashboard' },
-  { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva' },
-  { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial, path: '/historial' },
-  { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento, path: '/seguimiento' },
-  { id: 'alertas', label: 'Alertas', symbol: 'AL', component: Alertas, path: '/alertas' },
-  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes, path: '/reportes' },
-  { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores' },
-  { id: 'admin-eps-arl', label: 'EPS/ARL', symbol: 'EA', component: AdminEpsArl, path: '/admin/eps-arl' }
+  { id: 'dashboard', label: 'Dashboard', symbol: 'DB', component: Dashboard, path: '/dashboard', roles: ['ADMIN', 'AUXILIAR'] },
+  { id: 'registro', label: 'Registro', symbol: 'RG', component: Registro, path: '/incapacidades/nueva', roles: ['ADMIN', 'AUXILIAR'] },
+  { id: 'historial', label: 'Historial', symbol: 'HS', component: Historial, path: '/historial', roles: ['ADMIN', 'AUXILIAR', 'READONLY'] },
+  { id: 'seguimiento', label: 'Seguimiento', symbol: 'SG', component: Seguimiento, path: '/seguimiento', roles: ['ADMIN', 'AUXILIAR'] },
+  { id: 'alertas', label: 'Alertas', symbol: 'AL', component: Alertas, path: '/alertas', roles: ['ADMIN', 'AUXILIAR'] },
+  { id: 'reportes', label: 'Reportes', symbol: 'RP', component: Reportes, path: '/reportes', roles: ['ADMIN', 'AUXILIAR', 'READONLY'] },
+  { id: 'admin-colaboradores', label: 'Colaboradores', symbol: 'CO', component: AdminColaboradores, path: '/admin/colaboradores', roles: ['ADMIN'] },
+  { id: 'admin-eps-arl', label: 'EPS/ARL', symbol: 'EA', component: AdminEpsArl, path: '/admin/eps-arl', roles: ['ADMIN'] }
 ];
 
 function AppShell() {
+  const [sesion, setSesion] = useState(() => obtenerSesion());
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const rol = sesion?.usuario?.rol;
+  const navPermitida = navItems.filter((item) => puedeAcceder(rol, item));
   const validacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/validar$/);
   const transcripcionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/transcribir$/);
   const radicacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/radicar$/);
@@ -58,8 +63,34 @@ function AppShell() {
     (historialExpedienteMatch && 'historial') ||
     (expedienteMatch && 'historial') ||
     navItems.find((item) => item.path === currentPath)?.id ||
-    'login';
+    navPermitida[0]?.id;
   const CurrentPage = navItems.find((item) => item.id === activePage)?.component ?? Login;
+
+   const rutaActual = navItems.find((item) => item.id === activePage);
+  const rutaGestion =
+    validacionMatch ||
+    transcripcionMatch ||
+    radicacionMatch ||
+    cobroMatch ||
+    pagoMatch ||
+    rechazoMatch ||
+    conciliacionMatch ||
+    juridicoMatch ||
+    currentPath === '/incapacidades/nueva' ||
+    currentPath === '/seguimiento' ||
+    currentPath === '/alertas';
+  const rutaAdmin = currentPath.startsWith('/admin/');
+  const rutaLectura =
+    currentPath === '/historial' ||
+    currentPath === '/reportes' ||
+    Boolean(historialExpedienteMatch) ||
+    Boolean(expedienteMatch);
+  const autorizado =
+    sesion &&
+    ((rutaActual && puedeAcceder(rol, rutaActual)) ||
+      (rutaLectura && ['ADMIN', 'AUXILIAR', 'READONLY'].includes(rol)) ||
+      (rutaGestion && ['ADMIN', 'AUXILIAR'].includes(rol)) ||
+      (rutaAdmin && rol === 'ADMIN'));
 
   function navigate(item) {
     const nextPath = item.path ?? '/';
@@ -69,12 +100,47 @@ function AppShell() {
 
   useEffect(() => {
     const syncPath = () => setCurrentPath(window.location.pathname);
+    const syncSesion = () => setSesion(obtenerSesion());
     window.addEventListener('popstate', syncPath);
+    window.addEventListener('epros-auth-change', syncSesion);
 
-    return () => window.removeEventListener('popstate', syncPath);
+    return () => {
+      window.removeEventListener('popstate', syncPath);
+      window.removeEventListener('epros-auth-change', syncSesion);
+    };
   }, []);
 
+    useEffect(() => {
+    if (!sesion) return;
+    if (!navPermitida.length) return;
+    if (currentPath === '/' || currentPath === '/login' || !autorizado) {
+      const nextPath = navPermitida[0].path;
+      window.history.replaceState({}, '', nextPath);
+      setCurrentPath(nextPath);
+    }
+  }, [autorizado, currentPath, navPermitida, sesion]);
+
+  if (!sesion) {
+    return <Login />;
+  }
+
   function renderPage() {
+    if (!autorizado) {
+      return (
+        <section className="page">
+          <header className="page-header">
+            <div>
+              <p>Acceso restringido</p>
+              <h1>No tienes permisos para este modulo</h1>
+            </div>
+          </header>
+          <div className="panel">
+            <p className="empty-state">Tu rol actual es {rol}. Selecciona una opcion disponible en el menu.</p>
+          </div>
+        </section>
+      );
+    }
+
     if (validacionMatch) {
       return <ValidarIncapacidad incapacidadId={validacionMatch[1]} />;
     }
@@ -125,12 +191,12 @@ function AppShell() {
           <span className="brand-mark">E</span>
           <div>
             <strong>EPROS</strong>
-            <small>Gestion de incapacidades</small>
+            <small>{sesion.usuario.nombre_completo}</small>
           </div>
         </div>
 
         <nav className="nav-list" aria-label="Navegacion principal">
-          {navItems.map((item) => (
+          {navPermitida.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -141,6 +207,10 @@ function AppShell() {
               <span>{item.label}</span>
             </button>
           ))}
+          <button type="button" onClick={() => logout()}>
+            <span className="nav-symbol">SA</span>
+            <span>Salir</span>
+          </button>
         </nav>
       </aside>
 

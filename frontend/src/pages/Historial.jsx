@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
+import { obtenerSesion } from '../auth.js';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 const estados = [
   'Registrada',
@@ -127,7 +129,9 @@ export default function Historial() {
 
   function exportarExcel() {
     const params = construirQuery(filtros, pagination.pagina);
+    const sesion = obtenerSesion();
     params.delete('pagina');
+    if (sesion?.token) params.set('access_token', sesion.token);
     window.location.href = `${API_BASE}/incapacidades/historial/exportar?${params}`;
   }
 

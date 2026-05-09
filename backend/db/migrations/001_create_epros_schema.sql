@@ -19,10 +19,18 @@ CREATE TABLE usuarios (
   nombre_completo TEXT NOT NULL,
   correo TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  rol TEXT NOT NULL DEFAULT 'Auxiliar_Talento_Humano',
+  rol TEXT NOT NULL DEFAULT 'AUXILIAR' CHECK (rol IN ('ADMIN', 'AUXILIAR', 'READONLY')),
   activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tokens_revocados (
+  jti TEXT PRIMARY KEY,
+  usuario_id INTEGER,
+  expira_en TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE
 );
 
 CREATE TABLE colaboradores (
@@ -301,6 +309,7 @@ CREATE TABLE auditorias (
 );
 
 CREATE INDEX idx_colaboradores_eps_arl_id ON colaboradores (eps_arl_id);
+CREATE INDEX idx_tokens_revocados_usuario_id ON tokens_revocados (usuario_id);
 CREATE INDEX idx_incapacidades_colaborador_id ON incapacidades (colaborador_id);
 CREATE INDEX idx_incapacidades_estado_actual_id ON incapacidades (estado_actual_id);
 CREATE INDEX idx_incapacidades_fecha_inicio ON incapacidades (fecha_inicio);

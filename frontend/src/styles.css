@@ -101,6 +101,53 @@ select {
   padding: 40px;
 }
 
+.login-page {
+  display: grid;
+  place-content: center;
+  gap: 24px;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-header {
+  max-width: 520px;
+}
+
+.login-header p,
+.login-header h1 {
+  margin: 0;
+}
+
+.login-header p {
+  margin-top: 14px;
+  color: #102030;
+  font-size: 38px;
+  font-weight: 900;
+}
+
+.login-header h1 {
+  margin-top: 6px;
+  color: #304457;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.login-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  background: #2fb47c;
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.login-card {
+  width: min(520px, calc(100vw - 48px));
+}
+
 .page {
   max-width: 980px;
 }
