@@ -187,152 +187,6 @@ npm.cmd run dev --prefix frontend
 
 ---
 
-## Sesion 11 - CU-11 Monitorear Incapacidades Prolongadas
-
-**Estado:** completada
-**Commit funcional:** `Implementar CU-11 monitoreo de incapacidades prolongadas`
-
-### Hecho
-
-- Se implemento CU-11 en la ruta frontend `/alertas`.
-- Se agrego el backend `/api/alertas` con:
-  - listado de alertas activas/reprogramadas
-  - ejecucion manual del monitoreo con `POST /api/alertas/monitorear`
-  - detalle de caso alertado
-  - registro de acciones por alerta
-- El monitoreo calcula dias acumulados por colaborador sumando incapacidades activas.
-- Se aplican los umbrales normativos:
-  - nivel 1 desde 90 dias
-  - nivel 2 desde 120 dias
-  - nivel 3 desde 150 dias
-  - nivel 4 desde 180 dias
-  - nivel 5 desde 540 dias en los ultimos 3 anios
-- Se agregaron las tablas:
-  - `alertas_prolongadas`
-  - `acciones_alerta_prolongada`
-- El panel `/alertas` muestra colaboradores criticos con nombre, dias acumulados, diagnostico principal, EPS/ARL y nivel.
-- El listado se ordena por nivel descendente y luego por dias acumulados.
-- El detalle muestra historial activo del colaborador y acciones recomendadas segun el umbral.
-- El formulario de accion incluye tipo de accion por nivel, fecha, responsable, observaciones y proximo hito.
-- Al registrar una accion:
-  - se guarda en `acciones_alerta_prolongada`
-  - se reprograma la alerta con el proximo hito
-  - se registra una novedad en `seguimientos` para verla en el expediente
-  - se registra auditoria con accion `REGISTRAR_ACCION_ALERTA_PROLONGADA`
-- El expediente muestra las acciones registradas por alertas prolongadas.
-- Se agregaron datos semilla para probar alertas de niveles 1 a 5.
-
-### Archivos principales modificados
-
-- `backend/db/migrations/001_create_epros_schema.sql`
-- `backend/db/seeders/001_seed_epros_demo_data.sql`
-- `backend/routes/alertas.js`
-- `backend/routes/incapacidades.js`
-- `backend/server.js`
-- `frontend/src/main.jsx`
-- `frontend/src/pages/Alertas.jsx`
-- `frontend/src/pages/ExpedienteIncapacidad.jsx`
-- `frontend/src/styles.css`
-- `PROGRESO_EPROS.md`
-
-### Verificacion
-
-```bash
-node --check backend/routes/alertas.js
-node --check backend/routes/incapacidades.js
-node --check backend/server.js
-npm.cmd run build --prefix frontend
-```
-
-Tambien se valido la migracion y el seeder contra una base SQLite temporal:
-
-```bash
-$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu11-test.sqlite'
-npm.cmd run db:init --prefix backend
-```
-
-Prueba real por HTTP en puerto temporal `4111`:
-
-- `POST /api/alertas/monitorear` genero 5 alertas.
-- `GET /api/alertas` devolvio primero el caso nivel 5.
-- `GET /api/alertas/:id` devolvio acciones disponibles por umbral.
-- `POST /api/alertas/:id/acciones` registro una accion y reprogramo el proximo hito a `2026-06-08`.
-
----
-
-## Sesion 10 - CU-12 Rechazo, CU-14 Conciliacion y CU-13 Cobro Juridico
-
-**Estado:** completada
-**Commit funcional:** pendiente
-
-### Hecho
-
-- Se implemento CU-12 en `/incapacidades/:id/rechazo`.
-- El rechazo solo se registra desde `Radicada` o `En_Revision_EPS`.
-- El formulario de rechazo incluye motivo configurable, otro motivo libre, fecha de notificacion, codigo de rechazo, observaciones y adjunto de notificacion EPS.
-- Al registrar rechazo:
-  - se guarda/actualiza `rechazos`
-  - se cambia el estado a `Rechazada`
-  - se registra auditoria con accion `REGISTRAR_RECHAZO`
-- Se agregaron las acciones posteriores:
-  - corregir y re-radicar cambia a `Transcrita`
-  - impugnar guarda fecha de decision y plazo legal
-  - cobro juridico redirige a CU-13
-- Se implemento CU-14 en `/incapacidades/:id/conciliacion`.
-- La conciliacion solo opera en `En_Conciliacion` y muestra valor cobrado, valor pagado y diferencia.
-- Se agrego registro de gestiones con fecha de contacto, respuesta EPS y documentos intercambiados.
-- Se agrego acuerdo final con valor acordado, justificacion y resultado:
-  - pago adicional redirige a CU-08
-  - aceptar diferencia cambia a `Pagada`
-  - sin acuerdo redirige a CU-13
-- Se implemento CU-13 en `/incapacidades/:id/juridico`.
-- El cobro juridico se habilita desde rechazo, conciliacion, estado juridico o cobro vencido por mas de 180 dias.
-- Se agrego formulario de proceso juridico con apoderado, fecha inicio, valor en disputa y radicado judicial opcional.
-- Se agrego seccion de novedades juridicas.
-- Se agrego resultado final:
-  - exito redirige a CU-08 para registrar pago
-  - acuerdo cierra como `Pagada`
-  - desistimiento y perdida cierran como `Cerrada_Sin_Pago`
-  - perdida genera alerta de revision interna en seguimientos
-- El expediente y el historial muestran accesos contextuales a rechazo, conciliacion y juridico.
-- Se amplio el esquema de SQLite para soportar decision de rechazo, gestiones de conciliacion y motivo de cierre juridico.
-
-### Archivos principales modificados
-
-- `backend/db/migrations/001_create_epros_schema.sql`
-- `backend/routes/incapacidades.js`
-- `frontend/src/main.jsx`
-- `frontend/src/pages/RechazoIncapacidad.jsx`
-- `frontend/src/pages/ConciliacionIncapacidad.jsx`
-- `frontend/src/pages/JuridicoIncapacidad.jsx`
-- `frontend/src/pages/ExpedienteIncapacidad.jsx`
-- `frontend/src/pages/Historial.jsx`
-- `frontend/src/pages/PagoIncapacidad.jsx`
-- `PROGRESO_EPROS.md`
-
-### Verificacion
-
-```bash
-node --check backend/routes/incapacidades.js
-node --check backend/server.js
-npm.cmd run build --prefix frontend
-```
-
-Tambien se valido la migracion y el seeder contra una base SQLite temporal:
-
-```bash
-$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu10-test.sqlite'
-npm.cmd run db:init --prefix backend
-```
-
-Prueba real por HTTP en puerto temporal:
-
-- `GET /api/incapacidades/4/rechazo` devolvio `disponible: true`
-- `GET /api/incapacidades/9/conciliacion` devolvio `disponible: true`
-- `GET /api/incapacidades/10/juridico` devolvio `disponible: true`
-
----
-
 ## Sesion 4 - CU-02 Validar Documentacion
 
 **Estado:** completada
@@ -744,4 +598,209 @@ El build se ejecuto desde `frontend/`. Tambien se validaron por HTTP:
 ```bash
 npm.cmd run dev --prefix backend
 npm.cmd run dev --prefix frontend
+```
+
+---
+
+## Sesion 10 - CU-12 Rechazo, CU-14 Conciliacion y CU-13 Cobro Juridico
+
+**Estado:** completada
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento CU-12 en `/incapacidades/:id/rechazo`.
+- El rechazo solo se registra desde `Radicada` o `En_Revision_EPS`.
+- El formulario de rechazo incluye motivo configurable, otro motivo libre, fecha de notificacion, codigo de rechazo, observaciones y adjunto de notificacion EPS.
+- Al registrar rechazo:
+  - se guarda/actualiza `rechazos`
+  - se cambia el estado a `Rechazada`
+  - se registra auditoria con accion `REGISTRAR_RECHAZO`
+- Se agregaron las acciones posteriores:
+  - corregir y re-radicar cambia a `Transcrita`
+  - impugnar guarda fecha de decision y plazo legal
+  - cobro juridico redirige a CU-13
+- Se implemento CU-14 en `/incapacidades/:id/conciliacion`.
+- La conciliacion solo opera en `En_Conciliacion` y muestra valor cobrado, valor pagado y diferencia.
+- Se agrego registro de gestiones con fecha de contacto, respuesta EPS y documentos intercambiados.
+- Se agrego acuerdo final con valor acordado, justificacion y resultado:
+  - pago adicional redirige a CU-08
+  - aceptar diferencia cambia a `Pagada`
+  - sin acuerdo redirige a CU-13
+- Se implemento CU-13 en `/incapacidades/:id/juridico`.
+- El cobro juridico se habilita desde rechazo, conciliacion, estado juridico o cobro vencido por mas de 180 dias.
+- Se agrego formulario de proceso juridico con apoderado, fecha inicio, valor en disputa y radicado judicial opcional.
+- Se agrego seccion de novedades juridicas.
+- Se agrego resultado final:
+  - exito redirige a CU-08 para registrar pago
+  - acuerdo cierra como `Pagada`
+  - desistimiento y perdida cierran como `Cerrada_Sin_Pago`
+  - perdida genera alerta de revision interna en seguimientos
+- El expediente y el historial muestran accesos contextuales a rechazo, conciliacion y juridico.
+- Se amplio el esquema de SQLite para soportar decision de rechazo, gestiones de conciliacion y motivo de cierre juridico.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/RechazoIncapacidad.jsx`
+- `frontend/src/pages/ConciliacionIncapacidad.jsx`
+- `frontend/src/pages/JuridicoIncapacidad.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/PagoIncapacidad.jsx`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu10-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP en puerto temporal:
+
+- `GET /api/incapacidades/4/rechazo` devolvio `disponible: true`
+- `GET /api/incapacidades/9/conciliacion` devolvio `disponible: true`
+- `GET /api/incapacidades/10/juridico` devolvio `disponible: true`
+
+---
+
+## Sesion 11 - CU-11 Monitorear Incapacidades Prolongadas
+
+**Estado:** completada
+**Commit funcional:** `Implementar CU-11 monitoreo de incapacidades prolongadas`
+
+### Hecho
+
+- Se implemento CU-11 en la ruta frontend `/alertas`.
+- Se agrego el backend `/api/alertas` con:
+  - listado de alertas activas/reprogramadas
+  - ejecucion manual del monitoreo con `POST /api/alertas/monitorear`
+  - detalle de caso alertado
+  - registro de acciones por alerta
+- El monitoreo calcula dias acumulados por colaborador sumando incapacidades activas.
+- Se aplican los umbrales normativos:
+  - nivel 1 desde 90 dias
+  - nivel 2 desde 120 dias
+  - nivel 3 desde 150 dias
+  - nivel 4 desde 180 dias
+  - nivel 5 desde 540 dias en los ultimos 3 anios
+- Se agregaron las tablas:
+  - `alertas_prolongadas`
+  - `acciones_alerta_prolongada`
+- El panel `/alertas` muestra colaboradores criticos con nombre, dias acumulados, diagnostico principal, EPS/ARL y nivel.
+- El listado se ordena por nivel descendente y luego por dias acumulados.
+- El detalle muestra historial activo del colaborador y acciones recomendadas segun el umbral.
+- El formulario de accion incluye tipo de accion por nivel, fecha, responsable, observaciones y proximo hito.
+- Al registrar una accion:
+  - se guarda en `acciones_alerta_prolongada`
+  - se reprograma la alerta con el proximo hito
+  - se registra una novedad en `seguimientos` para verla en el expediente
+  - se registra auditoria con accion `REGISTRAR_ACCION_ALERTA_PROLONGADA`
+- El expediente muestra las acciones registradas por alertas prolongadas.
+- Se agregaron datos semilla para probar alertas de niveles 1 a 5.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/db/seeders/001_seed_epros_demo_data.sql`
+- `backend/routes/alertas.js`
+- `backend/routes/incapacidades.js`
+- `backend/server.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Alertas.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/alertas.js
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu11-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP en puerto temporal `4111`:
+
+- `POST /api/alertas/monitorear` genero 5 alertas.
+- `GET /api/alertas` devolvio primero el caso nivel 5.
+- `GET /api/alertas/:id` devolvio acciones disponibles por umbral.
+- `POST /api/alertas/:id/acciones` registro una accion y reprogramo el proximo hito a `2026-06-08`.
+
+
+---
+
+## Sesion 12 - Autenticacion y control de acceso
+
+**Estado:** completada
+
+### Hecho
+
+- Se implemento el sistema de autenticacion JWT sin dependencias externas en `backend/auth.js`:
+  - Firma HMAC-SHA256 implementada manualmente con `node:crypto`
+  - Hashing de passwords con PBKDF2 (120000 iteraciones)
+  - Generacion y verificacion de tokens con soporte de revocacion en base de datos
+- Se implemento el middleware de autenticacion y control de acceso en `backend/middleware/auth.js`:
+  - `autenticar`: verifica el token Bearer en cada peticion a `/api/*`
+  - `controlarAcceso`: aplica guards por rol antes de dejar pasar la solicitud
+- Se agregaron las rutas `/api/auth/login` y `/api/auth/logout` en `backend/routes/auth.js`:
+  - Login valida credenciales, genera JWT y registra auditoria con accion `LOGIN`
+  - Logout revoca el token insertandolo en `tokens_revocados` y registra auditoria con accion `LOGOUT`
+- Se aplico proteccion global sobre todas las rutas `/api/*` incluyendo `/api/health`, que ahora exige token valido
+- Se implementaron guards por rol:
+  - `ADMIN`: acceso total a todos los modulos y operaciones
+  - `AUXILIAR`: gestion completa de incapacidades, seguimiento, alertas y reportes; solo lectura en catalogos administrativos (colaboradores y EPS/ARL)
+  - `READONLY`: acceso unicamente a historial, expediente individual y reportes
+- Se actualizaron los seeders con tres usuarios de prueba:
+  - `admin@epros.com` / `Admin123!` — rol ADMIN
+  - `auxiliar@epros.com` / `Aux123!` — rol AUXILIAR
+  - `consulta@epros.com` / `Con123!` — rol READONLY
+- Se implemento el login real en `frontend/src/pages/Login.jsx` con encabezado EPROS y subtitulo Sistema de Gestion de Incapacidades
+- Se implemento la gestion de sesion en `frontend/src/auth.js`:
+  - Sesion persistida en `localStorage` con verificacion de expiración al leer
+  - Interceptor global de `fetch` que inyecta el header `Authorization: Bearer <token>` en todas las peticiones a la API
+  - Redireccion automatica al login cuando el servidor responde 401
+  - Funcion `logout` que llama a `/api/auth/logout` y limpia la sesion local
+  - Funcion `puedeAcceder` para filtrar elementos de navegacion segun el rol del usuario
+- La navegacion del sidebar se filtra dinamicamente segun el rol de la sesion activa
+
+### Archivos principales modificados
+
+- `backend/auth.js`
+- `backend/middleware/auth.js`
+- `backend/routes/auth.js`
+- `backend/server.js`
+- `backend/db/seeders/001_seed_epros_demo_data.sql`
+- `frontend/src/auth.js`
+- `frontend/src/pages/Login.jsx`
+- `frontend/src/main.jsx`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/auth.js
+node --check backend/middleware/auth.js
+node --check backend/routes/auth.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
 ```
