@@ -349,13 +349,13 @@ th {
 
 .admin-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
 }
 
 .admin-form {
-  max-width: none;
+  max-width: 620px;
 }
 
 .admin-form h2 {
@@ -799,14 +799,13 @@ label small {
 
 .tracking-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-columns: 1fr;
   gap: 20px;
-  align-items: start;
 }
 
 .alerts-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 430px;
+  grid-template-columns: minmax(0, 1.2fr) 380px;
   gap: 20px;
   align-items: start;
 }
