@@ -242,9 +242,26 @@ export default function Historial() {
                       <span className={`status status-${registro.estado_actual}`}>{registro.estado_actual}</span>
                     </td>
                     <td>
-                      <button type="button" className="secondary-button" onClick={() => navegar(`/historial/${registro.id}`)}>
-                        Ver expediente
-                      </button>
+                      <div className="actions-cell">
+                        <button type="button" className="secondary-button" onClick={() => navegar(`/historial/${registro.id}`)}>
+                          Ver expediente
+                        </button>
+                        {['Radicada', 'En_Revision_EPS'].includes(registro.estado_actual) && (
+                          <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/rechazo`)}>
+                            Rechazo
+                          </button>
+                        )}
+                        {registro.estado_actual === 'En_Conciliacion' && (
+                          <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/conciliacion`)}>
+                            Conciliacion
+                          </button>
+                        )}
+                        {['Rechazada', 'Cobro_Juridico'].includes(registro.estado_actual) && (
+                          <button type="button" className="secondary-button" onClick={() => navegar(`/incapacidades/${registro.id}/juridico`)}>
+                            Juridico
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

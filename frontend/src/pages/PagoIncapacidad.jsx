@@ -175,7 +175,7 @@ export default function PagoIncapacidad({ incapacidadId }) {
     );
   }
 
-  const puedePagar = incapacidad.estado_actual === 'En_Cobro' && cobro;
+  const puedePagar = ['En_Cobro', 'En_Conciliacion', 'Cobro_Juridico'].includes(incapacidad.estado_actual) && cobro;
 
   return (
     <section className="page wide-page">
@@ -264,7 +264,7 @@ export default function PagoIncapacidad({ incapacidadId }) {
           {mensaje && <p className="feedback success">{mensaje}</p>}
           {error && <p className="feedback error">{error}</p>}
           {!puedePagar && (
-            <p className="feedback error">CU-08 solo esta disponible cuando la incapacidad esta En_Cobro y tiene cobro registrado.</p>
+            <p className="feedback error">CU-08 esta disponible en En_Cobro, En_Conciliacion o Cobro_Juridico con cobro registrado.</p>
           )}
 
           <label>

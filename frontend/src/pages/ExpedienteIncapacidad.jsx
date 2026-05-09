@@ -168,6 +168,21 @@ export default function ExpedienteIncapacidad({ incapacidadId, soloLectura = fal
                       Registrar pago
                     </button>
                   )}
+                  {['Radicada', 'En_Revision_EPS'].includes(expediente.estado_actual) && (
+                    <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/rechazo`)}>
+                      Gestionar rechazo
+                    </button>
+                  )}
+                  {expediente.estado_actual === 'En_Conciliacion' && (
+                    <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/conciliacion`)}>
+                      Conciliacion
+                    </button>
+                  )}
+                  {['Rechazada', 'Cobro_Juridico'].includes(expediente.estado_actual) && (
+                    <button type="button" className="primary-button" onClick={() => navegar(`/incapacidades/${incapacidadId}/juridico`)}>
+                      Cobro juridico
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="secondary-button"
@@ -319,6 +334,35 @@ export default function ExpedienteIncapacidad({ incapacidadId, soloLectura = fal
               <p className="empty-state finance-empty">No hay pagos registrados.</p>
             )}
           </article>
+
+          {(expediente.rechazo || expediente.conciliacion || expediente.cobro_juridico) && (
+            <article className="panel detail-panel">
+              <h2>Gestion excepcional</h2>
+              <div className="compact-records">
+                {expediente.rechazo && (
+                  <div className="record-item">
+                    <strong>Rechazo {expediente.rechazo.codigo_rechazo ?? expediente.rechazo.motivo_codigo}</strong>
+                    <p>{expediente.rechazo.motivo_descripcion}</p>
+                    <small>{expediente.rechazo.accion_seleccionada ?? 'Sin accion seleccionada'}</small>
+                  </div>
+                )}
+                {expediente.conciliacion && (
+                  <div className="record-item">
+                    <strong>Conciliacion - diferencia {formatearMoneda(expediente.conciliacion.diferencia)}</strong>
+                    <p>{expediente.conciliacion.justificacion_diferencia ?? 'Sin justificacion final'}</p>
+                    <small>{expediente.conciliacion.resultado ?? 'Sin resultado final'}</small>
+                  </div>
+                )}
+                {expediente.cobro_juridico && (
+                  <div className="record-item">
+                    <strong>Cobro juridico - {formatearMoneda(expediente.cobro_juridico.valor_en_disputa)}</strong>
+                    <p>{expediente.cobro_juridico.estado_proceso}</p>
+                    <small>{expediente.cobro_juridico.resultado_final ?? 'Proceso activo'}</small>
+                  </div>
+                )}
+              </div>
+            </article>
+          )}
 
           <article className="panel detail-panel">
             <h2>Documentos adjuntos</h2>

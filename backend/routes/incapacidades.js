@@ -64,6 +64,7 @@ const licencias = ['LICENCIA_MATERNIDAD', 'LICENCIA_PATERNIDAD'];
 
 let validacionesSchemaVerificado = false;
 let transcripcionesSchemaVerificado = false;
+let excepcionesSchemaVerificado = false;
 
 function asegurarSchemaValidaciones() {
   if (validacionesSchemaVerificado) return;
@@ -103,6 +104,76 @@ function asegurarSchemaTranscripciones() {
   transcripcionesSchemaVerificado = true;
 }
 
+function columnaExiste(tabla, columna) {
+  return db.prepare(`PRAGMA table_info(${tabla})`).all().some((item) => item.name === columna);
+}
+
+function asegurarSchemaExcepciones() {
+  if (excepcionesSchemaVerificado) return;
+
+  const columnasRechazos = db.prepare('PRAGMA table_info(rechazos)').all();
+  const accionRequerida = columnasRechazos.some((columna) => columna.name === 'accion_seleccionada' && columna.notnull === 1);
+
+  if (accionRequerida) {
+    run(`
+      CREATE TABLE IF NOT EXISTS rechazos_nueva (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        incapacidad_id INTEGER NOT NULL UNIQUE,
+        motivo_codigo TEXT NOT NULL,
+        motivo_descripcion TEXT NOT NULL,
+        fecha_notificacion TEXT NOT NULL,
+        codigo_rechazo TEXT,
+        observaciones TEXT,
+        documento_notificacion TEXT,
+        accion_seleccionada TEXT CHECK (accion_seleccionada IS NULL OR accion_seleccionada IN ('re_radicar', 'impugnar', 'cobro_juridico')),
+        decision_fecha TEXT,
+        plazo_impugnacion TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (incapacidad_id) REFERENCES incapacidades(id) ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    run(`
+      INSERT OR IGNORE INTO rechazos_nueva (
+        id,
+        incapacidad_id,
+        motivo_codigo,
+        motivo_descripcion,
+        fecha_notificacion,
+        documento_notificacion,
+        accion_seleccionada,
+        created_at,
+        updated_at
+      )
+      SELECT
+        id,
+        incapacidad_id,
+        motivo_codigo,
+        motivo_descripcion,
+        fecha_notificacion,
+        documento_notificacion,
+        accion_seleccionada,
+        created_at,
+        updated_at
+      FROM rechazos
+    `);
+    run('DROP TABLE rechazos');
+    run('ALTER TABLE rechazos_nueva RENAME TO rechazos');
+  }
+
+  if (!columnaExiste('rechazos', 'codigo_rechazo')) run('ALTER TABLE rechazos ADD COLUMN codigo_rechazo TEXT');
+  if (!columnaExiste('rechazos', 'observaciones')) run('ALTER TABLE rechazos ADD COLUMN observaciones TEXT');
+  if (!columnaExiste('rechazos', 'decision_fecha')) run('ALTER TABLE rechazos ADD COLUMN decision_fecha TEXT');
+  if (!columnaExiste('rechazos', 'plazo_impugnacion')) run('ALTER TABLE rechazos ADD COLUMN plazo_impugnacion TEXT');
+  if (!columnaExiste('conciliaciones', 'gestiones')) {
+    run("ALTER TABLE conciliaciones ADD COLUMN gestiones TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!columnaExiste('conciliaciones', 'resultado')) run('ALTER TABLE conciliaciones ADD COLUMN resultado TEXT');
+  if (!columnaExiste('cobros_juridicos', 'motivo_cierre')) run('ALTER TABLE cobros_juridicos ADD COLUMN motivo_cierre TEXT');
+
+  excepcionesSchemaVerificado = true;
+}
+
 function calcularDias(fechaInicio, fechaFin) {
   const inicio = new Date(`${fechaInicio}T00:00:00`);
   const fin = new Date(`${fechaFin}T00:00:00`);
@@ -122,6 +193,19 @@ function sumarDias(fecha, dias) {
 
   base.setDate(base.getDate() + Number(dias));
   return base.toISOString().slice(0, 10);
+}
+
+function fechaActualIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parsearJsonArray(valor) {
+  try {
+    const datos = JSON.parse(valor ?? '[]');
+    return Array.isArray(datos) ? datos : [];
+  } catch {
+    return [];
+  }
 }
 
 function construirChecklist(incapacidad) {
@@ -511,6 +595,16 @@ function obtenerCobroActual(incapacidadId) {
     `,
     [incapacidadId]
   );
+}
+
+function cobroVencido(cobro) {
+  if (!cobro?.fecha_cobro) return false;
+  const fechaCobro = new Date(`${cobro.fecha_cobro}T00:00:00`);
+  if (Number.isNaN(fechaCobro.getTime())) return false;
+
+  const limite = new Date(fechaCobro);
+  limite.setDate(limite.getDate() + 180);
+  return limite <= new Date();
 }
 
 function obtenerValorCobrado(cobro) {
@@ -1300,7 +1394,7 @@ router.get('/:id/pago', (req, res) => {
 
   return res.json({
     incapacidad,
-    disponible: incapacidad.estado_actual === 'En_Cobro',
+    disponible: ['En_Cobro', 'En_Conciliacion', 'Cobro_Juridico'].includes(incapacidad.estado_actual),
     cobro,
     valor_cobrado: cobro ? obtenerValorCobrado(cobro) : null,
     pagos
@@ -1314,9 +1408,9 @@ router.post('/:id/pago', (req, res) => {
     return res.status(404).json({ error: 'Incapacidad no encontrada' });
   }
 
-  if (incapacidad.estado_actual !== 'En_Cobro') {
+  if (!['En_Cobro', 'En_Conciliacion', 'Cobro_Juridico'].includes(incapacidad.estado_actual)) {
     return res.status(409).json({
-      error: `El pago solo aplica a incapacidades En_Cobro. Estado actual: ${incapacidad.estado_actual}.`
+      error: `El pago solo aplica a incapacidades En_Cobro, En_Conciliacion o Cobro_Juridico. Estado actual: ${incapacidad.estado_actual}.`
     });
   }
 
@@ -1464,6 +1558,745 @@ router.post('/:id/pago', (req, res) => {
   });
 
   return res.status(201).json(registrarPago());
+});
+
+router.get('/:id/rechazo', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const rechazo = get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [req.params.id]);
+  const motivos = [
+    { codigo: 'DOC-001', descripcion: 'Documento ilegible o incompleto' },
+    { codigo: 'RAD-002', descripcion: 'Radicacion fuera de plazo' },
+    { codigo: 'CIE-003', descripcion: 'Diagnostico CIE-10 no reconocido por la EPS' },
+    { codigo: 'DAT-004', descripcion: 'Datos del colaborador no coinciden' },
+    { codigo: 'OTRO', descripcion: 'Otro motivo' }
+  ];
+
+  return res.json({
+    incapacidad,
+    disponible: ['Radicada', 'En_Revision_EPS'].includes(incapacidad.estado_actual),
+    rechazo,
+    motivos
+  });
+});
+
+router.post('/:id/rechazo', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (!['Radicada', 'En_Revision_EPS'].includes(incapacidad.estado_actual)) {
+    return res.status(409).json({
+      error: `El rechazo solo aplica a incapacidades Radicada o En_Revision_EPS. Estado actual: ${incapacidad.estado_actual}.`
+    });
+  }
+
+  const {
+    motivo_codigo,
+    motivo_descripcion,
+    fecha_notificacion,
+    codigo_rechazo,
+    observaciones = '',
+    documento_notificacion_data,
+    usuario_id = 1
+  } = req.body;
+  const errores = [];
+  const motivoCodigo = String(motivo_codigo ?? '').trim();
+  const motivoDescripcion = String(motivo_descripcion ?? '').trim();
+  const codigoRechazo = String(codigo_rechazo ?? '').trim();
+  const adjunto = normalizarAdjunto(documento_notificacion_data);
+
+  if (!motivoCodigo) errores.push('El motivo del rechazo es obligatorio.');
+  if (!motivoDescripcion) errores.push('La descripcion del motivo es obligatoria.');
+  if (!fecha_notificacion) errores.push('La fecha de notificacion es obligatoria.');
+  if (!codigoRechazo) errores.push('El codigo de rechazo es obligatorio.');
+  if (adjunto.error) errores.push(adjunto.error.replace('adjunto', 'adjunto de notificacion'));
+
+  if (errores.length) {
+    return res.status(400).json({ error: errores.join(' ') });
+  }
+
+  const registrarRechazo = transaction(() => {
+    const documentoNotificacion = guardarAdjunto({
+      incapacidadId: req.params.id,
+      adjunto,
+      prefijo: 'rechazo'
+    });
+
+    run(
+      `
+        INSERT INTO rechazos (
+          incapacidad_id,
+          motivo_codigo,
+          motivo_descripcion,
+          fecha_notificacion,
+          codigo_rechazo,
+          observaciones,
+          documento_notificacion,
+          accion_seleccionada
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+        ON CONFLICT (incapacidad_id) DO UPDATE SET
+          motivo_codigo = excluded.motivo_codigo,
+          motivo_descripcion = excluded.motivo_descripcion,
+          fecha_notificacion = excluded.fecha_notificacion,
+          codigo_rechazo = excluded.codigo_rechazo,
+          observaciones = excluded.observaciones,
+          documento_notificacion = excluded.documento_notificacion,
+          accion_seleccionada = NULL,
+          decision_fecha = NULL,
+          plazo_impugnacion = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        req.params.id,
+        motivoCodigo,
+        motivoDescripcion,
+        fecha_notificacion,
+        codigoRechazo,
+        String(observaciones ?? '').trim() || null,
+        documentoNotificacion
+      ]
+    );
+
+    const cambio = cambiarEstadoIncapacidad({
+      incapacidadId: req.params.id,
+      estadoNuevo: 'Rechazada',
+      usuarioId: usuario_id,
+      justificacion: `Rechazo registrado por EPS/ARL: ${codigoRechazo}.`
+    });
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_RECHAZO', 'rechazos', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        req.params.id,
+        JSON.stringify({
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          motivo_codigo: motivoCodigo,
+          codigo_rechazo: codigoRechazo
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      rechazo: get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [req.params.id])
+    };
+  });
+
+  return res.status(201).json(registrarRechazo());
+});
+
+router.post('/:id/rechazo/accion', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  if (incapacidad.estado_actual !== 'Rechazada') {
+    return res.status(409).json({ error: `Las acciones de rechazo requieren estado Rechazada. Estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const rechazo = get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [req.params.id]);
+  if (!rechazo) {
+    return res.status(409).json({ error: 'Primero registra los datos del rechazo.' });
+  }
+
+  const { accion, fecha_decision = fechaActualIso(), plazo_impugnacion, usuario_id = 1 } = req.body;
+  const accionNormalizada = String(accion ?? '').trim();
+  const acciones = ['re_radicar', 'impugnar', 'cobro_juridico'];
+
+  if (!acciones.includes(accionNormalizada)) {
+    return res.status(400).json({ error: 'La accion seleccionada no es valida.' });
+  }
+
+  const aplicarAccion = transaction(() => {
+    let estadoNuevo = incapacidad.estado_actual;
+    let redirect_to = null;
+    let justificacion = 'Decision registrada sobre rechazo.';
+
+    if (accionNormalizada === 're_radicar') {
+      estadoNuevo = 'Transcrita';
+      justificacion = 'Se corregira la incapacidad para re-radicar desde transcripcion.';
+    }
+
+    if (accionNormalizada === 'cobro_juridico') {
+      estadoNuevo = 'Cobro_Juridico';
+      redirect_to = `/incapacidades/${req.params.id}/juridico`;
+      justificacion = 'Rechazo escalado a cobro juridico.';
+    }
+
+    if (accionNormalizada === 'impugnar') {
+      justificacion = 'Decision de impugnar el rechazo registrada.';
+    }
+
+    run(
+      `
+        UPDATE rechazos
+        SET accion_seleccionada = ?,
+            decision_fecha = ?,
+            plazo_impugnacion = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE incapacidad_id = ?
+      `,
+      [
+        accionNormalizada,
+        fecha_decision,
+        accionNormalizada === 'impugnar' ? String(plazo_impugnacion ?? '').trim() || null : null,
+        req.params.id
+      ]
+    );
+
+    let cambio = { estadoAnterior: incapacidad.estado_actual, estadoNuevo: incapacidad.estado_actual };
+    if (estadoNuevo !== incapacidad.estado_actual) {
+      cambio = cambiarEstadoIncapacidad({
+        incapacidadId: req.params.id,
+        estadoNuevo,
+        usuarioId: usuario_id,
+        justificacion
+      });
+    }
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'DECIDIR_ACCION_RECHAZO', 'rechazos', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        rechazo.id,
+        JSON.stringify({
+          accion_seleccionada: accionNormalizada,
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          plazo_impugnacion: accionNormalizada === 'impugnar' ? plazo_impugnacion : null
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      rechazo: get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [req.params.id]),
+      redirect_to
+    };
+  });
+
+  return res.json(aplicarAccion());
+});
+
+router.get('/:id/conciliacion', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) {
+    return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  }
+
+  const cobro = obtenerCobroActual(req.params.id);
+  const pago = cobro
+    ? get('SELECT * FROM pagos WHERE cobro_id = ? ORDER BY fecha_pago DESC, id DESC LIMIT 1', [cobro.id])
+    : null;
+  const conciliacion = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]);
+
+  return res.json({
+    incapacidad,
+    disponible: incapacidad.estado_actual === 'En_Conciliacion',
+    cobro,
+    pago,
+    valor_cobrado: conciliacion?.valor_cobrado ?? (cobro ? obtenerValorCobrado(cobro) : 0),
+    valor_pagado: conciliacion?.valor_pagado ?? pago?.valor_pagado ?? 0,
+    diferencia: conciliacion?.diferencia ?? (cobro && pago ? redondearPesos(obtenerValorCobrado(cobro) - Number(pago.valor_pagado)) : 0),
+    conciliacion: conciliacion
+      ? { ...conciliacion, gestiones: parsearJsonArray(conciliacion.gestiones) }
+      : null
+  });
+});
+
+router.post('/:id/conciliacion/gestiones', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  if (incapacidad.estado_actual !== 'En_Conciliacion') {
+    return res.status(409).json({ error: `La conciliacion solo aplica a incapacidades En_Conciliacion. Estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const { fecha_contacto, respuesta_eps, documentos_intercambiados = '', usuario_id = 1 } = req.body;
+  const errores = [];
+  if (!fecha_contacto) errores.push('La fecha de contacto es obligatoria.');
+  if (!String(respuesta_eps ?? '').trim()) errores.push('La respuesta de la EPS es obligatoria.');
+  if (errores.length) return res.status(400).json({ error: errores.join(' ') });
+
+  const guardarGestion = transaction(() => {
+    const cobro = obtenerCobroActual(req.params.id);
+    const pago = cobro ? get('SELECT * FROM pagos WHERE cobro_id = ? ORDER BY fecha_pago DESC, id DESC LIMIT 1', [cobro.id]) : null;
+    const valorCobrado = cobro ? obtenerValorCobrado(cobro) : 0;
+    const valorPagado = Number(pago?.valor_pagado ?? 0);
+    const existente = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]);
+    const gestiones = parsearJsonArray(existente?.gestiones);
+    const nuevaGestion = {
+      fecha_contacto,
+      respuesta_eps: String(respuesta_eps).trim(),
+      documentos_intercambiados: String(documentos_intercambiados ?? '').trim()
+    };
+    gestiones.push(nuevaGestion);
+
+    run(
+      `
+        INSERT INTO conciliaciones (
+          incapacidad_id,
+          valor_cobrado,
+          valor_pagado,
+          diferencia,
+          justificacion_diferencia,
+          gestiones
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (incapacidad_id) DO UPDATE SET
+          gestiones = excluded.gestiones,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        req.params.id,
+        valorCobrado,
+        valorPagado,
+        redondearPesos(valorCobrado - valorPagado),
+        existente?.justificacion_diferencia ?? 'Conciliacion abierta por diferencia entre cobro y pago.',
+        JSON.stringify(gestiones)
+      ]
+    );
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_GESTION_CONCILIACION', 'conciliaciones', ?, ?, NULL)
+      `,
+      [usuario_id, req.params.id, JSON.stringify(nuevaGestion)]
+    );
+
+    const conciliacion = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]);
+    return { conciliacion: { ...conciliacion, gestiones: parsearJsonArray(conciliacion.gestiones) } };
+  });
+
+  return res.status(201).json(guardarGestion());
+});
+
+router.put('/:id/conciliacion/acuerdo', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  if (incapacidad.estado_actual !== 'En_Conciliacion') {
+    return res.status(409).json({ error: `El acuerdo final requiere estado En_Conciliacion. Estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const { valor_acordado, justificacion_diferencia, resultado, fecha_acuerdo = fechaActualIso(), usuario_id = 1 } = req.body;
+  const resultadoNormalizado = String(resultado ?? '').trim();
+  const valorAcordado = Number(valor_acordado);
+  const errores = [];
+  if (!['pago_adicional', 'aceptar_diferencia', 'sin_acuerdo'].includes(resultadoNormalizado)) errores.push('El resultado del acuerdo no es valido.');
+  if (!Number.isFinite(valorAcordado) || valorAcordado < 0) errores.push('El valor acordado debe ser mayor o igual a cero.');
+  if (!String(justificacion_diferencia ?? '').trim()) errores.push('La justificacion de la diferencia es obligatoria.');
+  if (errores.length) return res.status(400).json({ error: errores.join(' ') });
+
+  const registrarAcuerdo = transaction(() => {
+    const cobro = obtenerCobroActual(req.params.id);
+    const pago = cobro ? get('SELECT * FROM pagos WHERE cobro_id = ? ORDER BY fecha_pago DESC, id DESC LIMIT 1', [cobro.id]) : null;
+    const valorCobrado = cobro ? obtenerValorCobrado(cobro) : 0;
+    const valorPagado = Number(pago?.valor_pagado ?? 0);
+    const diferencia = redondearPesos(valorCobrado - valorPagado);
+    const existente = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]);
+
+    run(
+      `
+        INSERT INTO conciliaciones (
+          incapacidad_id,
+          valor_cobrado,
+          valor_pagado,
+          diferencia,
+          valor_acordado,
+          justificacion_diferencia,
+          fecha_acuerdo,
+          gestiones,
+          resultado
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (incapacidad_id) DO UPDATE SET
+          valor_acordado = excluded.valor_acordado,
+          justificacion_diferencia = excluded.justificacion_diferencia,
+          fecha_acuerdo = excluded.fecha_acuerdo,
+          resultado = excluded.resultado,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        req.params.id,
+        valorCobrado,
+        valorPagado,
+        diferencia,
+        redondearPesos(valorAcordado),
+        String(justificacion_diferencia).trim(),
+        fecha_acuerdo,
+        existente?.gestiones ?? '[]',
+        resultadoNormalizado
+      ]
+    );
+
+    let estadoNuevo = incapacidad.estado_actual;
+    let redirect_to = null;
+    let cambio = { estadoAnterior: incapacidad.estado_actual, estadoNuevo: incapacidad.estado_actual };
+
+    if (resultadoNormalizado === 'aceptar_diferencia') {
+      estadoNuevo = 'Pagada';
+      cambio = cambiarEstadoIncapacidad({
+        incapacidadId: req.params.id,
+        estadoNuevo,
+        usuarioId: usuario_id,
+        justificacion: `Diferencia aceptada en conciliacion: ${String(justificacion_diferencia).trim()}`
+      });
+      if (cobro) run("UPDATE cobros SET estado = 'Pagado', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [cobro.id]);
+    }
+
+    if (resultadoNormalizado === 'pago_adicional') {
+      redirect_to = `/incapacidades/${req.params.id}/pago`;
+    }
+
+    if (resultadoNormalizado === 'sin_acuerdo') {
+      redirect_to = `/incapacidades/${req.params.id}/juridico`;
+    }
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_ACUERDO_CONCILIACION', 'conciliaciones', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        req.params.id,
+        JSON.stringify({
+          resultado: resultadoNormalizado,
+          valor_acordado: redondearPesos(valorAcordado),
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo
+        })
+      ]
+    );
+
+    const conciliacion = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [req.params.id]);
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      conciliacion: { ...conciliacion, gestiones: parsearJsonArray(conciliacion.gestiones) },
+      redirect_to
+    };
+  });
+
+  return res.json(registrarAcuerdo());
+});
+
+router.get('/:id/juridico', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+
+  const cobro = obtenerCobroActual(req.params.id);
+  const juridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [req.params.id]);
+  const disponible =
+    ['Rechazada', 'Cobro_Juridico', 'En_Conciliacion'].includes(incapacidad.estado_actual) ||
+    (incapacidad.estado_actual === 'En_Cobro' && cobroVencido(cobro));
+
+  return res.json({
+    incapacidad,
+    cobro,
+    disponible,
+    cobro_vencido: cobroVencido(cobro),
+    juridico: juridico ? { ...juridico, novedades: parsearJsonArray(juridico.novedades) } : null
+  });
+});
+
+router.post('/:id/juridico', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+
+  const cobro = obtenerCobroActual(req.params.id);
+  const disponible =
+    ['Rechazada', 'Cobro_Juridico', 'En_Conciliacion'].includes(incapacidad.estado_actual) ||
+    (incapacidad.estado_actual === 'En_Cobro' && cobroVencido(cobro));
+
+  if (!disponible) {
+    return res.status(409).json({ error: `CU-13 no esta disponible para el estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const {
+    apoderado_legal,
+    fecha_inicio,
+    valor_en_disputa,
+    numero_radicado_judicial = '',
+    estado_proceso = 'Inicio de cobro juridico',
+    usuario_id = 1
+  } = req.body;
+  const valorDisputa = Number(valor_en_disputa);
+  const errores = [];
+  if (!String(apoderado_legal ?? '').trim()) errores.push('El apoderado legal es obligatorio.');
+  if (!fecha_inicio) errores.push('La fecha de inicio es obligatoria.');
+  if (!Number.isFinite(valorDisputa) || valorDisputa < 0) errores.push('El valor en disputa debe ser mayor o igual a cero.');
+  if (!String(estado_proceso ?? '').trim()) errores.push('El estado del proceso es obligatorio.');
+  if (errores.length) return res.status(400).json({ error: errores.join(' ') });
+
+  const registrarJuridico = transaction(() => {
+    run(
+      `
+        INSERT INTO cobros_juridicos (
+          incapacidad_id,
+          apoderado_legal,
+          fecha_inicio,
+          valor_en_disputa,
+          numero_radicado_judicial,
+          estado_proceso,
+          novedades
+        ) VALUES (?, ?, ?, ?, ?, ?, '[]')
+        ON CONFLICT (incapacidad_id) DO UPDATE SET
+          apoderado_legal = excluded.apoderado_legal,
+          fecha_inicio = excluded.fecha_inicio,
+          valor_en_disputa = excluded.valor_en_disputa,
+          numero_radicado_judicial = excluded.numero_radicado_judicial,
+          estado_proceso = excluded.estado_proceso,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        req.params.id,
+        String(apoderado_legal).trim(),
+        fecha_inicio,
+        redondearPesos(valorDisputa),
+        String(numero_radicado_judicial ?? '').trim() || null,
+        String(estado_proceso).trim()
+      ]
+    );
+
+    let cambio = { estadoAnterior: incapacidad.estado_actual, estadoNuevo: incapacidad.estado_actual };
+    if (incapacidad.estado_actual !== 'Cobro_Juridico') {
+      cambio = cambiarEstadoIncapacidad({
+        incapacidadId: req.params.id,
+        estadoNuevo: 'Cobro_Juridico',
+        usuarioId: usuario_id,
+        justificacion: 'Expediente escalado a cobro juridico.'
+      });
+    }
+    if (cobro) run("UPDATE cobros SET estado = 'Juridico', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [cobro.id]);
+
+    const juridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [req.params.id]);
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_COBRO_JURIDICO', 'cobros_juridicos', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        juridico.id,
+        JSON.stringify({
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          valor_en_disputa: redondearPesos(valorDisputa)
+        })
+      ]
+    );
+
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      juridico: { ...juridico, novedades: parsearJsonArray(juridico.novedades) }
+    };
+  });
+
+  return res.status(201).json(registrarJuridico());
+});
+
+router.post('/:id/juridico/novedades', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  if (incapacidad.estado_actual !== 'Cobro_Juridico') {
+    return res.status(409).json({ error: `Las novedades juridicas requieren estado Cobro_Juridico. Estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const juridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [req.params.id]);
+  if (!juridico) return res.status(409).json({ error: 'Primero registra el cobro juridico.' });
+
+  const { fecha, descripcion, usuario_id = 1 } = req.body;
+  if (!fecha || !String(descripcion ?? '').trim()) {
+    return res.status(400).json({ error: 'La fecha y la descripcion de la novedad son obligatorias.' });
+  }
+
+  const novedades = parsearJsonArray(juridico.novedades);
+  const novedad = { fecha, descripcion: String(descripcion).trim() };
+  novedades.push(novedad);
+
+  run('UPDATE cobros_juridicos SET novedades = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+    JSON.stringify(novedades),
+    juridico.id
+  ]);
+  run(
+    `
+      INSERT INTO auditorias (
+        usuario_id,
+        accion,
+        entidad_afectada,
+        entidad_id,
+        detalle,
+        ip_address
+      ) VALUES (?, 'REGISTRAR_NOVEDAD_JURIDICA', 'cobros_juridicos', ?, ?, NULL)
+    `,
+    [usuario_id, juridico.id, JSON.stringify(novedad)]
+  );
+
+  const actualizado = get('SELECT * FROM cobros_juridicos WHERE id = ?', [juridico.id]);
+  return res.status(201).json({ juridico: { ...actualizado, novedades: parsearJsonArray(actualizado.novedades) } });
+});
+
+router.put('/:id/juridico/resultado', (req, res) => {
+  asegurarSchemaExcepciones();
+  const incapacidad = obtenerIncapacidad(req.params.id);
+  if (!incapacidad) return res.status(404).json({ error: 'Incapacidad no encontrada' });
+  if (incapacidad.estado_actual !== 'Cobro_Juridico') {
+    return res.status(409).json({ error: `El resultado juridico requiere estado Cobro_Juridico. Estado actual: ${incapacidad.estado_actual}.` });
+  }
+
+  const juridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [req.params.id]);
+  if (!juridico) return res.status(409).json({ error: 'Primero registra el cobro juridico.' });
+
+  const { resultado_final, motivo_cierre = '', usuario_id = 1 } = req.body;
+  const resultado = String(resultado_final ?? '').trim();
+  if (!['exito', 'desistimiento', 'acuerdo', 'perdida'].includes(resultado)) {
+    return res.status(400).json({ error: 'El resultado final juridico no es valido.' });
+  }
+  if (['desistimiento', 'perdida'].includes(resultado) && !String(motivo_cierre ?? '').trim()) {
+    return res.status(400).json({ error: 'El motivo de cierre es obligatorio para desistimiento o perdida.' });
+  }
+
+  const cerrarJuridico = transaction(() => {
+    run('UPDATE cobros_juridicos SET resultado_final = ?, motivo_cierre = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+      resultado,
+      String(motivo_cierre ?? '').trim() || null,
+      juridico.id
+    ]);
+
+    let redirect_to = null;
+    let cambio = { estadoAnterior: incapacidad.estado_actual, estadoNuevo: incapacidad.estado_actual };
+
+    if (resultado === 'exito') {
+      redirect_to = `/incapacidades/${req.params.id}/pago`;
+    }
+
+    if (resultado === 'acuerdo') {
+      cambio = cambiarEstadoIncapacidad({
+        incapacidadId: req.params.id,
+        estadoNuevo: 'Pagada',
+        usuarioId: usuario_id,
+        justificacion: 'Cobro juridico cerrado por acuerdo.'
+      });
+    }
+
+    if (resultado === 'desistimiento' || resultado === 'perdida') {
+      cambio = cambiarEstadoIncapacidad({
+        incapacidadId: req.params.id,
+        estadoNuevo: 'Cerrada_Sin_Pago',
+        usuarioId: usuario_id,
+        justificacion: resultado === 'perdida'
+          ? `Perdida del proceso juridico: ${String(motivo_cierre).trim()}`
+          : `Desistimiento del cobro juridico: ${String(motivo_cierre).trim()}`
+      });
+
+      if (resultado === 'perdida') {
+        run(
+          `
+            INSERT INTO seguimientos (
+              incapacidad_id,
+              fecha_contacto,
+              canal_contacto,
+              resultado_gestion,
+              proximo_paso,
+              auxiliar_id
+            ) VALUES (?, DATE('now'), 'sistema', 'Alerta por perdida en cobro juridico.', 'Revision interna del expediente y causas de perdida.', ?)
+          `,
+          [req.params.id, usuario_id]
+        );
+      }
+    }
+
+    run(
+      `
+        INSERT INTO auditorias (
+          usuario_id,
+          accion,
+          entidad_afectada,
+          entidad_id,
+          detalle,
+          ip_address
+        ) VALUES (?, 'REGISTRAR_RESULTADO_JURIDICO', 'cobros_juridicos', ?, ?, NULL)
+      `,
+      [
+        usuario_id,
+        juridico.id,
+        JSON.stringify({
+          resultado_final: resultado,
+          estado_anterior: cambio.estadoAnterior,
+          estado_nuevo: cambio.estadoNuevo,
+          redirect_to
+        })
+      ]
+    );
+
+    const actualizado = get('SELECT * FROM cobros_juridicos WHERE id = ?', [juridico.id]);
+    return {
+      incapacidad: obtenerIncapacidad(req.params.id),
+      juridico: { ...actualizado, novedades: parsearJsonArray(actualizado.novedades) },
+      redirect_to
+    };
+  });
+
+  return res.json(cerrarJuridico());
 });
 
 router.post('/', (req, res) => {

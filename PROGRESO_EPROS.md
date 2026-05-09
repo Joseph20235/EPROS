@@ -2,7 +2,7 @@
 
 ## Sesion 1 - Configuracion base y SQLite
 
-**Estado:** completada  
+**Estado:** completada
 **Commit:** `4213752 Configurar SQLite y datos base de EPROS`
 
 ### Hecho
@@ -41,7 +41,7 @@ Implementar el CRUD real de incapacidades desde el frontend usando el backend SQ
 
 ## Sesion 2 - Modulo de administracion
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** `d20c580 Implementar modulo de administracion`
 
 ### Hecho
@@ -115,7 +115,7 @@ npm.cmd run dev --prefix frontend
 
 ## Sesion 3 - CU-01 Registrar Incapacidad
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** `Implementar CU-01 registro de incapacidades`
 
 ### Hecho
@@ -187,9 +187,82 @@ npm.cmd run dev --prefix frontend
 
 ---
 
+## Sesion 10 - CU-12 Rechazo, CU-14 Conciliacion y CU-13 Cobro Juridico
+
+**Estado:** completada
+**Commit funcional:** pendiente
+
+### Hecho
+
+- Se implemento CU-12 en `/incapacidades/:id/rechazo`.
+- El rechazo solo se registra desde `Radicada` o `En_Revision_EPS`.
+- El formulario de rechazo incluye motivo configurable, otro motivo libre, fecha de notificacion, codigo de rechazo, observaciones y adjunto de notificacion EPS.
+- Al registrar rechazo:
+  - se guarda/actualiza `rechazos`
+  - se cambia el estado a `Rechazada`
+  - se registra auditoria con accion `REGISTRAR_RECHAZO`
+- Se agregaron las acciones posteriores:
+  - corregir y re-radicar cambia a `Transcrita`
+  - impugnar guarda fecha de decision y plazo legal
+  - cobro juridico redirige a CU-13
+- Se implemento CU-14 en `/incapacidades/:id/conciliacion`.
+- La conciliacion solo opera en `En_Conciliacion` y muestra valor cobrado, valor pagado y diferencia.
+- Se agrego registro de gestiones con fecha de contacto, respuesta EPS y documentos intercambiados.
+- Se agrego acuerdo final con valor acordado, justificacion y resultado:
+  - pago adicional redirige a CU-08
+  - aceptar diferencia cambia a `Pagada`
+  - sin acuerdo redirige a CU-13
+- Se implemento CU-13 en `/incapacidades/:id/juridico`.
+- El cobro juridico se habilita desde rechazo, conciliacion, estado juridico o cobro vencido por mas de 180 dias.
+- Se agrego formulario de proceso juridico con apoderado, fecha inicio, valor en disputa y radicado judicial opcional.
+- Se agrego seccion de novedades juridicas.
+- Se agrego resultado final:
+  - exito redirige a CU-08 para registrar pago
+  - acuerdo cierra como `Pagada`
+  - desistimiento y perdida cierran como `Cerrada_Sin_Pago`
+  - perdida genera alerta de revision interna en seguimientos
+- El expediente y el historial muestran accesos contextuales a rechazo, conciliacion y juridico.
+- Se amplio el esquema de SQLite para soportar decision de rechazo, gestiones de conciliacion y motivo de cierre juridico.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/routes/incapacidades.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/RechazoIncapacidad.jsx`
+- `frontend/src/pages/ConciliacionIncapacidad.jsx`
+- `frontend/src/pages/JuridicoIncapacidad.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/pages/Historial.jsx`
+- `frontend/src/pages/PagoIncapacidad.jsx`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu10-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP en puerto temporal:
+
+- `GET /api/incapacidades/4/rechazo` devolvio `disponible: true`
+- `GET /api/incapacidades/9/conciliacion` devolvio `disponible: true`
+- `GET /api/incapacidades/10/juridico` devolvio `disponible: true`
+
+---
+
 ## Sesion 4 - CU-02 Validar Documentacion
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** `Implementar CU-02 validacion documental`
 
 ### Hecho
@@ -266,7 +339,7 @@ npm.cmd run dev --prefix frontend
 
 ## Sesion 5 - CU-03 Transcribir y CU-04 Radicar
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** `Implementar CU-09 historial y CU-10 reportes`
 
 ### Hecho
@@ -356,7 +429,7 @@ npm.cmd run dev --prefix frontend
 
 ## Sesion 6 - CU-05 Gestionar Estado
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** pendiente
 
 ### Hecho
@@ -481,7 +554,7 @@ Prueba real por HTTP usando el backend en puerto temporal `4106`:
 
 ## Sesion 8 - CU-07 Gestionar Cobro y CU-08 Registrar Pago
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** pendiente
 
 ### Hecho
@@ -545,7 +618,7 @@ npm.cmd run build --prefix frontend
 
 ## Sesion 9 - CU-09 Historial y CU-10 Reportes
 
-**Estado:** completada  
+**Estado:** completada
 **Commit funcional:** pendiente
 
 ### Hecho

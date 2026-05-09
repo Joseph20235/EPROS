@@ -5,12 +5,15 @@ import { createRoot } from 'react-dom/client';
 import AdminColaboradores from './pages/AdminColaboradores.jsx';
 import AdminEpsArl from './pages/AdminEpsArl.jsx';
 import CobroIncapacidad from './pages/CobroIncapacidad.jsx';
+import ConciliacionIncapacidad from './pages/ConciliacionIncapacidad.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ExpedienteIncapacidad from './pages/ExpedienteIncapacidad.jsx';
 import Historial from './pages/Historial.jsx';
+import JuridicoIncapacidad from './pages/JuridicoIncapacidad.jsx';
 import Login from './pages/Login.jsx';
 import PagoIncapacidad from './pages/PagoIncapacidad.jsx';
 import RadicarIncapacidad from './pages/RadicarIncapacidad.jsx';
+import RechazoIncapacidad from './pages/RechazoIncapacidad.jsx';
 import Registro from './pages/Registro.jsx';
 import Reportes from './pages/Reportes.jsx';
 import Seguimiento from './pages/Seguimiento.jsx';
@@ -36,6 +39,9 @@ function AppShell() {
   const radicacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/radicar$/);
   const cobroMatch = currentPath.match(/^\/incapacidades\/(\d+)\/cobro$/);
   const pagoMatch = currentPath.match(/^\/incapacidades\/(\d+)\/pago$/);
+  const rechazoMatch = currentPath.match(/^\/incapacidades\/(\d+)\/rechazo$/);
+  const conciliacionMatch = currentPath.match(/^\/incapacidades\/(\d+)\/conciliacion$/);
+  const juridicoMatch = currentPath.match(/^\/incapacidades\/(\d+)\/juridico$/);
   const expedienteMatch = currentPath.match(/^\/incapacidades\/(\d+)$/);
   const historialExpedienteMatch = currentPath.match(/^\/historial\/(\d+)$/);
   const activePage =
@@ -44,6 +50,9 @@ function AppShell() {
     (radicacionMatch && 'radicacion') ||
     (cobroMatch && 'cobro') ||
     (pagoMatch && 'pago') ||
+    (rechazoMatch && 'rechazo') ||
+    (conciliacionMatch && 'conciliacion') ||
+    (juridicoMatch && 'juridico') ||
     (historialExpedienteMatch && 'historial') ||
     (expedienteMatch && 'historial') ||
     navItems.find((item) => item.path === currentPath)?.id ||
@@ -82,6 +91,18 @@ function AppShell() {
 
     if (pagoMatch) {
       return <PagoIncapacidad incapacidadId={pagoMatch[1]} />;
+    }
+
+    if (rechazoMatch) {
+      return <RechazoIncapacidad incapacidadId={rechazoMatch[1]} />;
+    }
+
+    if (conciliacionMatch) {
+      return <ConciliacionIncapacidad incapacidadId={conciliacionMatch[1]} />;
+    }
+
+    if (juridicoMatch) {
+      return <JuridicoIncapacidad incapacidadId={juridicoMatch[1]} />;
     }
 
     if (expedienteMatch) {
