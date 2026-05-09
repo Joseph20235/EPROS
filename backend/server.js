@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import alertasRouter from './routes/alertas.js';
 import colaboradoresRouter from './routes/colaboradores.js';
 import dashboardRouter from './routes/dashboard.js';
 import epsArlRouter from './routes/epsArl.js';
@@ -30,6 +31,7 @@ app.use('/api/colaboradores', colaboradoresRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/eps-arl', epsArlRouter);
 app.use('/api/incapacidades', incapacidadesRouter);
+app.use('/api/alertas', alertasRouter);
 app.use('/api/reportes', reportesRouter);
 app.use('/api/seguimiento', seguimientoRouter);
 

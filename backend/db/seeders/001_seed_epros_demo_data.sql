@@ -73,7 +73,12 @@ INSERT INTO incapacidades (
   (9, 'INC-CON-001', 4, '2026-03-14', '2026-03-20', 7, 'S800', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/9/incapacidad.pdf', 'Caso en conciliacion por diferencia de pago.', NULL, 1),
   (10, 'INC-JUR-001', 5, '2026-03-22', '2026-04-05', 15, 'N390', 'IPS Occidente', 'EPS', '/uploads/incapacidades/10/incapacidad.pdf', 'Caso escalado a cobro juridico.', NULL, 1),
   (11, 'INC-PAG-001', 1, '2026-04-08', '2026-04-10', 3, 'B349', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/11/incapacidad.pdf', 'Caso pagado.', NULL, 1),
-  (12, 'INC-CSP-001', 2, '2026-04-12', '2026-04-16', 5, 'G439', 'Clinica Central', 'EPS', '/uploads/incapacidades/12/incapacidad.pdf', 'Caso cerrado sin pago.', NULL, 1)
+  (12, 'INC-CSP-001', 2, '2026-04-12', '2026-04-16', 5, 'G439', 'Clinica Central', 'EPS', '/uploads/incapacidades/12/incapacidad.pdf', 'Caso cerrado sin pago.', NULL, 1),
+  (13, 'INC-PRO-090', 1, '2025-11-01', '2026-02-03', 95, 'M545', 'IPS Norte', 'ENFERMEDAD_GENERAL', '/uploads/incapacidades/13/incapacidad.pdf', 'Caso prolongado para alerta nivel 1.', NULL, 1),
+  (14, 'INC-PRO-120', 2, '2025-10-01', '2026-02-02', 125, 'G560', 'Clinica Central', 'EPS', '/uploads/incapacidades/14/incapacidad.pdf', 'Caso prolongado para alerta nivel 2.', NULL, 1),
+  (15, 'INC-PRO-150', 3, '2025-09-01', '2026-01-30', 152, 'F320', 'IPS San Rafael', 'EPS', '/uploads/incapacidades/15/incapacidad.pdf', 'Caso prolongado para alerta nivel 3.', NULL, 1),
+  (16, 'INC-PRO-180', 4, '2025-08-01', '2026-01-28', 181, 'S832', 'Clinica del Trabajo', 'ACCIDENTE_LABORAL', '/uploads/incapacidades/16/incapacidad.pdf', 'Caso prolongado para alerta nivel 4.', NULL, 1),
+  (17, 'INC-PRO-540', 5, '2024-09-01', '2026-02-27', 545, 'C509', 'IPS Occidente', 'EPS', '/uploads/incapacidades/17/incapacidad.pdf', 'Caso critico para alerta nivel 5.', NULL, 1)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO estados (
@@ -96,7 +101,12 @@ INSERT INTO estados (
   (9, 9, 'En_Conciliacion', '2026-03-14 09:30:00-05', 1, 'Diferencia detectada entre valor cobrado y pagado.', TRUE),
   (10, 10, 'Cobro_Juridico', '2026-03-22 10:30:00-05', 1, 'Escalamiento por rechazo injustificado.', TRUE),
   (11, 11, 'Pagada', '2026-04-08 11:30:00-05', 1, 'Pago identificado y conciliado.', TRUE),
-  (12, 12, 'Cerrada_Sin_Pago', '2026-04-12 12:30:00-05', 1, 'Proceso cerrado sin recuperacion del valor.', TRUE)
+  (12, 12, 'Cerrada_Sin_Pago', '2026-04-12 12:30:00-05', 1, 'Proceso cerrado sin recuperacion del valor.', TRUE),
+  (13, 13, 'Aprobada', '2026-02-03 08:15:00-05', 1, 'Caso prolongado aprobado para monitoreo.', TRUE),
+  (14, 14, 'En_Cobro', '2026-02-02 08:30:00-05', 1, 'Caso prolongado en cobro.', TRUE),
+  (15, 15, 'En_Revision_EPS', '2026-01-30 09:10:00-05', 1, 'Caso prolongado en revision EPS.', TRUE),
+  (16, 16, 'Cobro_Juridico', '2026-01-28 10:20:00-05', 1, 'Caso prolongado escalado a AFP/juridico.', TRUE),
+  (17, 17, 'En_Cobro', '2026-02-27 11:20:00-05', 1, 'Caso critico por acumulado en tres anios.', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE incapacidades SET estado_actual_id = 1 WHERE id = 1 AND estado_actual_id IS NULL;
@@ -111,6 +121,11 @@ UPDATE incapacidades SET estado_actual_id = 9 WHERE id = 9 AND estado_actual_id 
 UPDATE incapacidades SET estado_actual_id = 10 WHERE id = 10 AND estado_actual_id IS NULL;
 UPDATE incapacidades SET estado_actual_id = 11 WHERE id = 11 AND estado_actual_id IS NULL;
 UPDATE incapacidades SET estado_actual_id = 12 WHERE id = 12 AND estado_actual_id IS NULL;
+UPDATE incapacidades SET estado_actual_id = 13 WHERE id = 13 AND estado_actual_id IS NULL;
+UPDATE incapacidades SET estado_actual_id = 14 WHERE id = 14 AND estado_actual_id IS NULL;
+UPDATE incapacidades SET estado_actual_id = 15 WHERE id = 15 AND estado_actual_id IS NULL;
+UPDATE incapacidades SET estado_actual_id = 16 WHERE id = 16 AND estado_actual_id IS NULL;
+UPDATE incapacidades SET estado_actual_id = 17 WHERE id = 17 AND estado_actual_id IS NULL;
 
 INSERT INTO validaciones (
   incapacidad_id,

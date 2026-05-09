@@ -757,13 +757,26 @@ label small {
   align-items: start;
 }
 
+.alerts-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 20px;
+  align-items: start;
+}
+
 .tracking-side {
   display: grid;
   gap: 20px;
 }
 
+.alerts-side {
+  display: grid;
+  gap: 20px;
+}
+
 .tracking-layout tbody tr,
-.dashboard-layout tbody tr {
+.dashboard-layout tbody tr,
+.alerts-layout tbody tr {
   cursor: pointer;
 }
 
@@ -799,6 +812,42 @@ label small {
 .traffic-muted {
   background: #eef1f4;
   color: #667789;
+}
+
+.alert-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.level-1 {
+  background: #e7f1ff;
+  color: #245d9c;
+}
+
+.level-2 {
+  background: #fff8cc;
+  color: #756000;
+}
+
+.level-3 {
+  background: #fff2db;
+  color: #85540d;
+}
+
+.level-4 {
+  background: #fff0f0;
+  color: #a33b3b;
+}
+
+.level-5 {
+  background: #f0eaff;
+  color: #6541a5;
 }
 
 .compact-state-header {
@@ -884,6 +933,16 @@ label small {
 .record-item small {
   color: #537083;
   font-weight: 700;
+}
+
+.subheading {
+  margin: 18px 0 8px;
+  color: #304457;
+  font-size: 15px;
+}
+
+.alert-detail-grid {
+  margin-bottom: 4px;
 }
 
 .stacked-table {
@@ -1015,6 +1074,7 @@ label small {
     .workflow-layout,
     .expediente-layout,
     .tracking-layout,
+    .alerts-layout,
     .detail-grid,
     .checklist-row,
     .alert-item {

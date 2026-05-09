@@ -187,6 +187,79 @@ npm.cmd run dev --prefix frontend
 
 ---
 
+## Sesion 11 - CU-11 Monitorear Incapacidades Prolongadas
+
+**Estado:** completada
+**Commit funcional:** `Implementar CU-11 monitoreo de incapacidades prolongadas`
+
+### Hecho
+
+- Se implemento CU-11 en la ruta frontend `/alertas`.
+- Se agrego el backend `/api/alertas` con:
+  - listado de alertas activas/reprogramadas
+  - ejecucion manual del monitoreo con `POST /api/alertas/monitorear`
+  - detalle de caso alertado
+  - registro de acciones por alerta
+- El monitoreo calcula dias acumulados por colaborador sumando incapacidades activas.
+- Se aplican los umbrales normativos:
+  - nivel 1 desde 90 dias
+  - nivel 2 desde 120 dias
+  - nivel 3 desde 150 dias
+  - nivel 4 desde 180 dias
+  - nivel 5 desde 540 dias en los ultimos 3 anios
+- Se agregaron las tablas:
+  - `alertas_prolongadas`
+  - `acciones_alerta_prolongada`
+- El panel `/alertas` muestra colaboradores criticos con nombre, dias acumulados, diagnostico principal, EPS/ARL y nivel.
+- El listado se ordena por nivel descendente y luego por dias acumulados.
+- El detalle muestra historial activo del colaborador y acciones recomendadas segun el umbral.
+- El formulario de accion incluye tipo de accion por nivel, fecha, responsable, observaciones y proximo hito.
+- Al registrar una accion:
+  - se guarda en `acciones_alerta_prolongada`
+  - se reprograma la alerta con el proximo hito
+  - se registra una novedad en `seguimientos` para verla en el expediente
+  - se registra auditoria con accion `REGISTRAR_ACCION_ALERTA_PROLONGADA`
+- El expediente muestra las acciones registradas por alertas prolongadas.
+- Se agregaron datos semilla para probar alertas de niveles 1 a 5.
+
+### Archivos principales modificados
+
+- `backend/db/migrations/001_create_epros_schema.sql`
+- `backend/db/seeders/001_seed_epros_demo_data.sql`
+- `backend/routes/alertas.js`
+- `backend/routes/incapacidades.js`
+- `backend/server.js`
+- `frontend/src/main.jsx`
+- `frontend/src/pages/Alertas.jsx`
+- `frontend/src/pages/ExpedienteIncapacidad.jsx`
+- `frontend/src/styles.css`
+- `PROGRESO_EPROS.md`
+
+### Verificacion
+
+```bash
+node --check backend/routes/alertas.js
+node --check backend/routes/incapacidades.js
+node --check backend/server.js
+npm.cmd run build --prefix frontend
+```
+
+Tambien se valido la migracion y el seeder contra una base SQLite temporal:
+
+```bash
+$env:SQLITE_DB_PATH='D:\USER\Documents\EPROS\backend\database\epros-cu11-test.sqlite'
+npm.cmd run db:init --prefix backend
+```
+
+Prueba real por HTTP en puerto temporal `4111`:
+
+- `POST /api/alertas/monitorear` genero 5 alertas.
+- `GET /api/alertas` devolvio primero el caso nivel 5.
+- `GET /api/alertas/:id` devolvio acciones disponibles por umbral.
+- `POST /api/alertas/:id/acciones` registro una accion y reprogramo el proximo hito a `2026-06-08`.
+
+---
+
 ## Sesion 10 - CU-12 Rechazo, CU-14 Conciliacion y CU-13 Cobro Juridico
 
 **Estado:** completada

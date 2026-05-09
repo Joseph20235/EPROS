@@ -174,6 +174,48 @@ function asegurarSchemaExcepciones() {
   excepcionesSchemaVerificado = true;
 }
 
+function asegurarSchemaAlertasProlongadas() {
+  run(`
+    CREATE TABLE IF NOT EXISTS alertas_prolongadas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      colaborador_id INTEGER NOT NULL UNIQUE,
+      incapacidad_principal_id INTEGER NOT NULL,
+      eps_arl_id INTEGER NOT NULL,
+      nivel_alerta INTEGER NOT NULL CHECK (nivel_alerta BETWEEN 1 AND 5),
+      dias_acumulados INTEGER NOT NULL CHECK (dias_acumulados >= 0),
+      dias_ultimos_3_anios INTEGER NOT NULL DEFAULT 0 CHECK (dias_ultimos_3_anios >= 0),
+      diagnostico_principal TEXT NOT NULL,
+      estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'reprogramada', 'cerrada')),
+      proximo_hito TEXT,
+      fecha_generacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      ultima_ejecucion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON UPDATE CASCADE,
+      FOREIGN KEY (incapacidad_principal_id) REFERENCES incapacidades(id) ON UPDATE CASCADE,
+      FOREIGN KEY (eps_arl_id) REFERENCES eps_arl(id) ON UPDATE CASCADE
+    )
+  `);
+  run(`
+    CREATE TABLE IF NOT EXISTS acciones_alerta_prolongada (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      alerta_id INTEGER NOT NULL,
+      incapacidad_id INTEGER NOT NULL,
+      tipo_accion TEXT NOT NULL,
+      fecha TEXT NOT NULL,
+      responsable TEXT NOT NULL,
+      observaciones TEXT,
+      proximo_hito TEXT NOT NULL,
+      usuario_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (alerta_id) REFERENCES alertas_prolongadas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      FOREIGN KEY (incapacidad_id) REFERENCES incapacidades(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE
+    )
+  `);
+}
+
 function calcularDias(fechaInicio, fechaFin) {
   const inicio = new Date(`${fechaInicio}T00:00:00`);
   const fin = new Date(`${fechaFin}T00:00:00`);
@@ -754,6 +796,22 @@ function obtenerExpedienteCompleto(incapacidadId) {
   const rechazo = get('SELECT * FROM rechazos WHERE incapacidad_id = ?', [incapacidadId]);
   const conciliacion = get('SELECT * FROM conciliaciones WHERE incapacidad_id = ?', [incapacidadId]);
   const cobroJuridico = get('SELECT * FROM cobros_juridicos WHERE incapacidad_id = ?', [incapacidadId]);
+  asegurarSchemaAlertasProlongadas();
+  const accionesAlerta = all(
+    `
+      SELECT
+        aa.*,
+        ap.nivel_alerta,
+        ap.dias_acumulados,
+        u.nombre_completo AS usuario_nombre
+      FROM acciones_alerta_prolongada aa
+      JOIN alertas_prolongadas ap ON ap.id = aa.alerta_id
+      LEFT JOIN usuarios u ON u.id = aa.usuario_id
+      WHERE aa.incapacidad_id = ?
+      ORDER BY aa.fecha DESC, aa.id DESC
+    `,
+    [incapacidadId]
+  );
   const documentos = [
     { etiqueta: 'Incapacidad original', url: incapacidad.documento_adjunto },
     { etiqueta: 'Comprobante de radicacion', url: radicacion?.comprobante_adjunto },
@@ -781,6 +839,7 @@ function obtenerExpedienteCompleto(incapacidadId) {
     rechazo,
     conciliacion,
     cobro_juridico: cobroJuridico,
+    acciones_alerta: accionesAlerta,
     documentos,
     transiciones_validas: obtenerTransicionesValidas(incapacidad.estado_actual)
   };

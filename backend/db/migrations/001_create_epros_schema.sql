@@ -200,6 +200,43 @@ CREATE TABLE seguimientos (
   FOREIGN KEY (auxiliar_id) REFERENCES usuarios(id) ON UPDATE CASCADE
 );
 
+CREATE TABLE alertas_prolongadas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  colaborador_id INTEGER NOT NULL UNIQUE,
+  incapacidad_principal_id INTEGER NOT NULL,
+  eps_arl_id INTEGER NOT NULL,
+  nivel_alerta INTEGER NOT NULL CHECK (nivel_alerta BETWEEN 1 AND 5),
+  dias_acumulados INTEGER NOT NULL CHECK (dias_acumulados >= 0),
+  dias_ultimos_3_anios INTEGER NOT NULL DEFAULT 0 CHECK (dias_ultimos_3_anios >= 0),
+  diagnostico_principal TEXT NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'reprogramada', 'cerrada')),
+  proximo_hito TEXT,
+  fecha_generacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ultima_ejecucion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON UPDATE CASCADE,
+  FOREIGN KEY (incapacidad_principal_id) REFERENCES incapacidades(id) ON UPDATE CASCADE,
+  FOREIGN KEY (eps_arl_id) REFERENCES eps_arl(id) ON UPDATE CASCADE
+);
+
+CREATE TABLE acciones_alerta_prolongada (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  alerta_id INTEGER NOT NULL,
+  incapacidad_id INTEGER NOT NULL,
+  tipo_accion TEXT NOT NULL,
+  fecha TEXT NOT NULL,
+  responsable TEXT NOT NULL,
+  observaciones TEXT,
+  proximo_hito TEXT NOT NULL,
+  usuario_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (alerta_id) REFERENCES alertas_prolongadas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (incapacidad_id) REFERENCES incapacidades(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE
+);
+
 CREATE TABLE rechazos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   incapacidad_id INTEGER NOT NULL UNIQUE,
@@ -277,6 +314,10 @@ CREATE INDEX idx_cobros_incapacidad_id ON cobros (incapacidad_id);
 CREATE INDEX idx_cobros_estado ON cobros (estado);
 CREATE INDEX idx_pagos_cobro_id ON pagos (cobro_id);
 CREATE INDEX idx_seguimientos_incapacidad_id ON seguimientos (incapacidad_id);
+CREATE INDEX idx_alertas_prolongadas_nivel ON alertas_prolongadas (nivel_alerta);
+CREATE INDEX idx_alertas_prolongadas_estado ON alertas_prolongadas (estado);
+CREATE INDEX idx_acciones_alerta_alerta_id ON acciones_alerta_prolongada (alerta_id);
+CREATE INDEX idx_acciones_alerta_incapacidad_id ON acciones_alerta_prolongada (incapacidad_id);
 CREATE INDEX idx_auditorias_entidad ON auditorias (entidad_afectada, entidad_id);
 CREATE INDEX idx_auditorias_usuario_id ON auditorias (usuario_id);
 

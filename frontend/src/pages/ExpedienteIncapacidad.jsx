@@ -364,6 +364,21 @@ export default function ExpedienteIncapacidad({ incapacidadId, soloLectura = fal
             </article>
           )}
 
+          {expediente.acciones_alerta?.length > 0 && (
+            <article className="panel detail-panel">
+              <h2>Acciones por alerta prolongada</h2>
+              <div className="compact-records">
+                {expediente.acciones_alerta.map((accion) => (
+                  <div key={accion.id} className="record-item">
+                    <strong>Nivel {accion.nivel_alerta} - {accion.tipo_accion}</strong>
+                    <p>{accion.observaciones ?? 'Sin observaciones'}</p>
+                    <small>{accion.fecha} - proximo hito {accion.proximo_hito} - {accion.responsable}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+
           <article className="panel detail-panel">
             <h2>Documentos adjuntos</h2>
             {expediente.documentos?.length ? (
